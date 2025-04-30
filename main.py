@@ -21,7 +21,7 @@ from cryptography.fernet import Fernet
 
 # ------------------- НАСТРОЙКИ -------------------
 DATABASE = 'steam_accounts.db'
-STEAM_API_KEY = os.getenv('STEAM_API_KEY', 'AAF55A0E3B8BD310B2765212B459BF0D')
+STEAM_API_KEY = os.getenv('STEAM_API_KEY', 'YOUR KEY API')
 
 LOG_FORMAT = "\033[1;32m%(asctime)s\033[0m [\033[1;34m%(levelname)s\033[0m] %(message)s"
 logging.basicConfig(level=logging.INFO, format=LOG_FORMAT, datefmt="%Y-%m-%d %H:%M:%S")
