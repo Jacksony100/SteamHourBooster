@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Steam Hour Boost</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    /* Тёмная и светлая темы */
+    body.theme-dark { background-color: #222; color: #ddd; }
+    body.theme-dark .card { background-color: #333; color: #ddd; }
+    body.theme-light { background-color: #f8f9fa; color: #212529; }
+    body.theme-light .card { background-color: #fff; color: #212529; }
+    /* Анимация для иконок */
+    .dropdown-item:hover i { animation: shakeFlag 0.5s ease-in-out; }
+    @keyframes shakeFlag { 
+      0%   { transform: rotate(0deg); } 
+      25%  { transform: rotate(10deg); } 
+      50%  { transform: rotate(-10deg); } 
+      75%  { transform: rotate(5deg); } 
+      100% { transform: rotate(0deg); } 
+    }
+  </style>
+</head>
+<body class="theme-dark">
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1><i class="fas fa-rocket"></i> Steam Hour Boost</h1>
+    <div class="text-end">
+      <span class="text-light me-3">Hello, {{ username }}</span>
+      <a href="/logout" class="btn btn-sm btn-danger"><i class="fas fa-sign-out-alt"></i> Exit</a>
+      {% if is_admin %}
+        <a href="/admin" class="btn btn-warning">Admin-panel</a>
+      {% endif %}
+    </div>
+    <!-- Dropdown для темы и языка -->
+    <div class="d-inline-block">
+      <div class="dropdown d-inline-block me-2">
+        <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="themeDropdownBtn">
+          <i class="fas fa-adjust"></i> <span id="themeLabel">Dark</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-dark" id="themeDropdownMenu">
+          <li><a class="dropdown-item theme-item" href="#" data-value="dark"><i class="fas fa-moon"></i> Dark</a></li>
+          <li><a class="dropdown-item theme-item" href="#" data-value="light"><i class="fas fa-sun"></i> Light</a></li>
+        </ul>
+      </div>
+      <div class="dropdown d-inline-block" id="langDropdown">
+        <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <span id="langLabel">Russia</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-dark">
+          <li><a class="dropdown-item lang-item" href="#" data-value="ru"><i class="fas fa-flag"></i> Russia</a></li>
+          <li><a class="dropdown-item lang-item" href="#" data-value="en"><i class="fas fa-flag-usa"></i> English</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Форма добавления аккаунта -->
+  <div class="card mb-4">
+    <div class="card-header"><i class="fas fa-user-plus"></i> <span data-lang="add_account_title">Добавить новый аккаунт</span></div>
+    <div class="card-body">
+      <form id="addAccountForm" class="row g-3">
+        <div class="col-md-4">
+          <input type="text" class="form-control" id="username" placeholder="Логин" required data-lang-ph="username_ph">
+        </div>
+        <div class="col-md-4">
+          <input type="password" class="form-control" id="password" placeholder="Пароль" required data-lang-ph="password_ph">
+        </div>
+        <div class="col-md-4">
+          <input type="text" class="form-control" id="shared_secret" placeholder="Shared Secret (если есть)" data-lang-ph="shared_secret_ph">
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-plus"></i> <span data-lang="add_account_btn">Добавить аккаунт</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Таблица аккаунтов -->
+  <div class="card mb-4">
+    <div class="card-header"><i class="fas fa-users"></i> <span data-lang="account_list">Список аккаунтов</span></div>
+    <div class="card-body">
+      <table class="table table-striped" id="accountsTable">
+        <thead>
+          <tr>
+            <th style="width:50px;">ID</th>
+            <th data-lang="th_username">Логин</th>
+            <th data-lang="th_status">Статус</th>
+            <th data-lang="th_games">Активные игры</th>
+            <th data-lang="th_actions">Действия</th>
+          </tr>
+        </thead>
+        <tbody><!-- Заполняется через JS --></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Футер -->
+  <footer class="text-center mt-4">
+    <p>Coded by Jacksony. <a href="https://t.me/Smesharik_lair" target="_blank">My Telegram Channel</a></p>
+  </footer>
+</div>
+
+<!-- Модальное окно SteamGuard -->
+<div class="modal fade" id="steamGuardModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-key"></i> <span data-lang="steamguard_modal_title">Введите SteamGuard-код</span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="steamGuardCode" class="form-label" data-lang="steamguard_label">Код SteamGuard (email / приложение)</label>
+          <input type="text" class="form-control" id="steamGuardCode" placeholder="ABCDE" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-lang="btn_cancel" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" class="btn btn-warning" id="confirmSteamGuardBtn">
+          <i class="fas fa-check"></i> <span data-lang="btn_confirm">Подтвердить</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Модальное окно выбора игр -->
+<div class="modal fade" id="gamesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-gamepad"></i> <span data-lang="select_games_title">Выбор игр для фарминга</span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <div class="modal-body">
+        <div id="gamesList" class="row"><!-- Генерация динамически --></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="saveGamesBtn">
+          <i class="fas fa-save"></i> <span data-lang="btn_save_games">Сохранить выбранные игры</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS + FontAwesome -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // --- Переводы, темы и переключение языка ---
+  document.addEventListener("DOMContentLoaded", function(){
+    const themeItems = document.querySelectorAll(".theme-item");
+    themeItems.forEach(item => {
+      item.addEventListener("click", (e) => {
+        e.preventDefault();
+        const themeValue = item.dataset.value;
+        applyTheme(themeValue);
+        document.getElementById("themeLabel").textContent = item.textContent.trim();
+      });
+    });
+    const langItems = document.querySelectorAll(".lang-item");
+    langItems.forEach(item => {
+      item.addEventListener("click", (e) => {
+        e.preventDefault();
+        const langValue = item.dataset.value;
+        currentLang = langValue;
+        applyTranslations();
+        document.getElementById("langLabel").textContent = item.textContent.trim();
+      });
+    });
+  });
+  function applyTheme(theme){
+    if(theme === "light"){
+      document.body.className = "theme-light";
+      document.getElementById("accountsTable").classList.remove("table-dark");
+    } else {
+      document.body.className = "theme-dark";
+      document.getElementById("accountsTable").classList.add("table-dark");
+    }
+  }
+  const translations = {
+    en: {
+      "add_account_title": "Add New Account",
+      "add_account_btn": "Add Account",
+      "account_list": "Account List",
+      "th_username": "Username",
+      "th_status": "Status",
+      "th_games": "Active Games",
+      "th_actions": "Actions",
+      "steamguard_modal_title": "Enter SteamGuard code",
+      "steamguard_label": "SteamGuard code (email / app)",
+      "btn_cancel": "Cancel",
+      "btn_confirm": "Confirm",
+      "select_games_title": "Select Games for Farming",
+      "btn_save_games": "Save Selected Games",
+      "username_ph": "Username",
+      "password_ph": "Password",
+      "shared_secret_ph": "Shared Secret (if any)",
+      "btn_login": "Login",
+      "btn_games": "Games",
+      "btn_start": "Start",
+      "btn_stop": "Stop",
+      "btn_logout": "Logout",
+      "btn_bans": "Bans",
+      "btn_delete": "Delete",
+      "msg_success_title": "Success",
+      "msg_error_title": "Error",
+      "msg_account_added": "Account added",
+      "msg_account_deleted": "Account deleted",
+      "msg_login_success": "Logged in successfully",
+      "msg_account_logout": "Logged out",
+      "msg_farming_started": "Farming started: ",
+      "msg_farming_stopped": "Farming stopped",
+      "msg_no_account_code": "No code or account specified",
+      "bans_modal_title": "Ban Info",
+      "bans_vac_true": "VAC Ban: true",
+      "bans_vac_false": "VAC Ban: false",
+      "bans_community_true": "Community Ban: true",
+      "bans_community_false": "Community Ban: false",
+      "bans_number_of_vac": "NumberOfVACBans"
+    },
+    ru: {
+      "add_account_title": "Добавить новый аккаунт",
+      "add_account_btn": "Добавить аккаунт",
+      "account_list": "Список аккаунтов",
+      "th_username": "Логин",
+      "th_status": "Статус",
+      "th_games": "Активные игры",
+      "th_actions": "Действия",
+      "steamguard_modal_title": "Введите SteamGuard-код",
+      "steamguard_label": "Код SteamGuard (email / приложение)",
+      "btn_cancel": "Отмена",
+      "btn_confirm": "Подтвердить",
+      "select_games_title": "Выбор игр для фарминга",
+      "btn_save_games": "Сохранить выбранные игры",
+      "username_ph": "Логин",
+      "password_ph": "Пароль",
+      "shared_secret_ph": "Shared Secret (если есть)",
+      "btn_login": "Войти",
+      "btn_games": "Игры",
+      "btn_start": "Старт",
+      "btn_stop": "Стоп",
+      "btn_logout": "Выйти",
+      "btn_bans": "Баны",
+      "btn_delete": "Удалить",
+      "msg_success_title": "Успех",
+      "msg_error_title": "Ошибка",
+      "msg_account_added": "Аккаунт добавлен",
+      "msg_account_deleted": "Аккаунт удалён",
+      "msg_login_success": "Успешно вошли",
+      "msg_account_logout": "Вышли из аккаунта",
+      "msg_farming_started": "Фарминг запущен: ",
+      "msg_farming_stopped": "Фарминг остановлен",
+      "msg_no_account_code": "Не указан код или аккаунт",
+      "bans_modal_title": "Информация о банах",
+      "bans_vac_true": "VAC Ban: да",
+      "bans_vac_false": "VAC Ban: нет",
+      "bans_community_true": "Community Ban: да",
+      "bans_community_false": "Community Ban: нет",
+      "bans_number_of_vac": "Число VAC банов"
+    }
+  };
+  let currentLang = "ru";
+  function applyTranslations(){
+    document.querySelectorAll("[data-lang]").forEach(el=>{
+      const key = el.getAttribute("data-lang");
+      if(translations[currentLang][key]){
+        el.textContent = translations[currentLang][key];
+      }
+    });
+    document.querySelectorAll("[data-lang-ph]").forEach(el=>{
+      const key = el.getAttribute("data-lang-ph");
+      if(translations[currentLang][key]){
+        el.placeholder = translations[currentLang][key];
+      }
+    });
+  }
+  function showPopup(message, titleKey="msg_success_title"){
+    const title = translations[currentLang][titleKey] || titleKey;
+    const modalHtml = `
+      <div class="modal fade" id="popupModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+              <h5 class="modal-title">${title}</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+              <p>${message}</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML("beforeend", modalHtml);
+    const modal = new bootstrap.Modal(document.getElementById("popupModal"));
+    modal.show();
+    document.getElementById("popupModal").addEventListener("hidden.bs.modal", function(){
+      this.remove();
+    });
+  }
+  // --- Функции для работы с аккаунтами ---
+  async function fetchAccounts(){
+    const res = await fetch('/get_accounts');
+    const accounts = await res.json();
+    const tbody = document.querySelector('#accountsTable tbody');
+    tbody.innerHTML = '';
+    accounts.forEach(acc=>{
+	let activeGames = "";
+	if (acc.active_games && acc.active_games.length > 0) {
+	  activeGames = acc.active_games.map(g => g.game_name).join(", ");
+	}
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${acc.id}</td>
+        <td>${acc.username}</td>
+        <td>${acc.status}</td>
+        <td>${activeGames}</td>
+        <td>
+          <button class="btn btn-sm btn-success mb-1" onclick="loginAccount(${acc.id})">
+            <i class="fas fa-sign-in-alt"></i> 
+            <span data-lang="btn_login">Войти</span>
+          </button>
+          <button class="btn btn-sm btn-info mb-1" onclick="showGamesModal(${acc.id})">
+            <i class="fas fa-list"></i> 
+            <span data-lang="btn_games">Игры</span>
+          </button>
+          <button class="btn btn-sm btn-primary mb-1" onclick="startFarming(${acc.id})">
+            <i class="fas fa-play"></i> 
+            <span data-lang="btn_start">Старт</span>
+          </button>
+          <button class="btn btn-sm btn-warning mb-1" onclick="stopFarming(${acc.id})">
+            <i class="fas fa-pause"></i> 
+            <span data-lang="btn_stop">Стоп</span>
+          </button>
+          <button class="btn btn-sm btn-danger mb-1" onclick="logoutAccount(${acc.id})">
+            <i class="fas fa-sign-out-alt"></i> 
+            <span data-lang="btn_logout">Выйти</span>
+          </button>
+          <button class="btn btn-sm btn-secondary mb-1" onclick="checkBans(${acc.id})">
+            <i class="fas fa-ban"></i> 
+            <span data-lang="btn_bans">Баны</span>
+          </button>
+          <button class="btn btn-sm btn-dark mb-1" onclick="deleteAccount(${acc.id})">
+            <i class="fas fa-trash"></i> 
+            <span data-lang="btn_delete">Удалить</span>
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+    applyTranslations();
+  }
+  async function addAccount(e){
+    e.preventDefault();
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+    const shared_secret = document.getElementById("shared_secret").value;
+    const response = await fetch('/add_account', {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({username, password, shared_secret})
+    });
+    const data = await response.json();
+    if(data.success){
+      showPopup(translations[currentLang]["msg_account_added"], "msg_success_title");
+      e.target.reset();
+    } else {
+      showPopup("Ошибка: " + data.error, "msg_error_title");
+    }
+    fetchAccounts();
+  }
+  document.getElementById("addAccountForm").addEventListener("submit", addAccount);
+  async function deleteAccount(accountId){
+    const response = await fetch('/delete_account', {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id: accountId})
+    });
+    const data = await response.json();
+    if(data.success){
+      showPopup(translations[currentLang]["msg_account_deleted"], "msg_success_title");
+    } else {
+      showPopup("Ошибка: " + data.error, "msg_error_title");
+    }
+    fetchAccounts();
+  }
+  let steamGuardAccountId = null;
+  async function loginAccount(accountId, steamGuardCode=null){
+    const bodyData = { id: accountId };
+    if(steamGuardCode){
+      bodyData.steam_guard_code = steamGuardCode;
+    }
+    const response = await fetch('/login_account', {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(bodyData)
+    });
+    const data = await response.json();
+    if(data.success){
+      showPopup(translations[currentLang]["msg_login_success"], "msg_success_title");
+      fetchAccounts();
+    } else {
+      if(data.need_steam_guard){
+        steamGuardAccountId = accountId;
+        const modal = new bootstrap.Modal(document.getElementById("steamGuardModal"));
+        modal.show();
+      } else {
+        showPopup("Ошибка: " + data.error, "msg_error_title");
+        fetchAccounts();
+      }
+    }
+  }
+  document.getElementById("confirmSteamGuardBtn").addEventListener("click", async ()=>{
+    const code = document.getElementById("steamGuardCode").value;
+    if(!steamGuardAccountId || !code){
+      showPopup(translations[currentLang]["msg_no_account_code"], "msg_error_title");
+      return;
+    }
+    await loginAccount(steamGuardAccountId, code);
+    const modalEl = document.getElementById("steamGuardModal");
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    modal.hide();
+    document.getElementById("steamGuardCode").value = "";
+    steamGuardAccountId = null;
+  });
+  async function logoutAccount(accountId) {
+    const response = await fetch('/logout_account', {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ account_id: parseInt(accountId) })
+    });
+    const data = await response.json();
+    if(data.success){
+      showPopup(translations[currentLang]["msg_account_logout"], "msg_success_title");
+    } else {
+      showPopup("Ошибка: " + data.error, "msg_error_title");
+    }
+    fetchAccounts();
+  }
+  async function startFarming(accountId){
+    const response = await fetch('/start_farming', {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ account_id: accountId })
+    });
+    const data = await response.json();
+    if(data.success){
+      showPopup("Фарминг запущен!", "msg_success_title");
+    } else {
+      showPopup("Ошибка: " + data.error, "msg_error_title");
+    }
+    fetchAccounts();
+  }
+  async function stopFarming(accountId){
+    const response = await fetch('/stop_farming', {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ account_id: parseInt(accountId) })
+    });
+    const data = await response.json();
+    if(data.success){
+      showPopup(translations[currentLang]["msg_farming_stopped"], "msg_success_title");
+    } else {
+      showPopup("Ошибка: " + data.error, "msg_error_title");
+    }
+    fetchAccounts();
+  }
+  async function showGamesModal(accountId){
+    currentAccountIdForGames = parseInt(accountId);
+    const response = await fetch('/fetch_owned_games', {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ account_id: currentAccountIdForGames })
+    });
+    const data = await response.json();
+    if(!data.success){
+      showPopup("Ошибка: " + data.error, "msg_error_title");
+      return;
+    }
+    const games = data.games || [];
+    const container = document.getElementById("gamesList");
+    container.innerHTML = "";
+    games.forEach(g=>{
+      const div = document.createElement("div");
+      div.classList.add("col-md-3","mb-2");
+      div.innerHTML = `
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" value="${g.app_id}" id="game_${g.app_id}">
+          <label class="form-check-label" for="game_${g.app_id}">${g.name}</label>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+    const modal = new bootstrap.Modal(document.getElementById("gamesModal"));
+    modal.show();
+  }
+  document.getElementById("saveGamesBtn").addEventListener("click", async ()=>{
+    const checkboxes = document.querySelectorAll("#gamesList .form-check-input");
+    const selected = [];
+    checkboxes.forEach(cb=>{
+      if(cb.checked){
+        const label = document.querySelector(`label[for="${cb.id}"]`);
+        selected.push({
+          app_id: cb.value,
+          name: label ? label.textContent : `App ${cb.value}`
+        });
+      }
+    });
+    if(!currentAccountIdForGames){
+      showPopup("Неизвестно, для какого аккаунта сохранять игры", "msg_error_title");
+      return;
+    }
+    const response = await fetch('/update_account_games', {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({account_id: currentAccountIdForGames, games: selected})
+    });
+    const data = await response.json();
+    if(data.success){
+      showPopup("Сохранено игр: " + data.count, "msg_success_title");
+      const modalEl = document.getElementById("gamesModal");
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      modal.hide();
+      fetchAccounts();
+    } else {
+      showPopup("Ошибка: " + data.error, "msg_error_title");
+    }
+  });
+  async function checkBans(accountId){
+    const response = await fetch('/ban_info', {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ account_id: parseInt(accountId) })
+    });
+    const data = await response.json();
+    if(data.success){
+      const bans = data.bans;
+      const vacIcon = bans.VACBanned ? '<i class="fas fa-times text-danger"></i>' : '<i class="fas fa-check text-success"></i>';
+      const vacText = bans.VACBanned ? translations[currentLang]["bans_vac_true"] : translations[currentLang]["bans_vac_false"];
+      const commIcon = bans.CommunityBanned ? '<i class="fas fa-times text-danger"></i>' : '<i class="fas fa-check text-success"></i>';
+      const commText = bans.CommunityBanned ? translations[currentLang]["bans_community_true"] : translations[currentLang]["bans_community_false"];
+      const numberVAC = bans.NumberOfVACBans;
+      const numberVACText = translations[currentLang]["bans_number_of_vac"] + ": " + numberVAC;
+      const msg = `
+        <p>${vacIcon} ${vacText}</p>
+        <p>${commIcon} ${commText}</p>
+        <p><i class="fas fa-shield-halved"></i> ${numberVACText}</p>
+      `;
+      showPopup(msg, translations[currentLang]["bans_modal_title"]);
+    } else {
+      showPopup("Ошибка: " + data.error, "msg_error_title");
+    }
+  }
+  fetchAccounts();
+  applyTranslations();
+  applyTheme("dark");
+</script>
+</body>
+</html>

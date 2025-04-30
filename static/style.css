@@ -1,0 +1,61 @@
+body {
+    background-color: #121212; /* Темный фон */
+    color: white; /* Белый цвет текста */
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    width: 80%;
+    margin: auto;
+    padding-top: 20px;
+}
+
+h1, h2, h3 {
+    color: #f1c40f; /* Желтоватый цвет заголовков */
+}
+
+button {
+    background-color: #f1c40f; 
+    color: black; 
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: 0.3s;
+    border-radius: 5px;
+}
+
+button:hover {
+    background-color: #e67e22;
+    transform: scale(1.05);
+}
+
+.account-card {
+    background-color: #1e1e1e;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);
+    transition: transform 0.3s ease-in-out;
+}
+
+.account-card:hover {
+    transform: scale(1.05);
+}
+
+.status-online {
+    color: #2ecc71;
+    font-weight: bold;
+}
+
+.status-offline {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
+.status-waiting {
+    color: #f1c40f;
+    font-weight: bold;
+}
