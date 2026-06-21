@@ -1,0 +1,113 @@
+name: deckpilot
+
+x-api-env: &api-env
+  APP_ENV: ${APP_ENV:-development}
+  WEB_BASE_URL: ${WEB_BASE_URL:-http://localhost:3000}
+  API_BASE_URL: ${API_BASE_URL:-http://localhost:8000}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+  SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-deckpilot_session}
+  CSRF_COOKIE_NAME: ${CSRF_COOKIE_NAME:-deckpilot_csrf}
+  COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+  COOKIE_SECURE: ${COOKIE_SECURE:-false}
+  COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+  DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://deckpilot:deckpilot@postgres:5432/deckpilot}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+  SECRET_KEY: ${SECRET_KEY:-replace-with-a-random-secret-of-at-least-32-characters}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:-0J4FyJwHnYmeFz7r5Zk8F0KJxl-2mFY9hqqIetQxZj0=}
+  STEAM_API_KEY: ${STEAM_API_KEY:-}
+  STEAM_TEST_MODE: ${STEAM_TEST_MODE:-true}
+  STEAM_INTEGRATION_MODE: ${STEAM_INTEGRATION_MODE:-demo}
+  STEAM_OFFICIAL_LINKING_ENABLED: ${STEAM_OFFICIAL_LINKING_ENABLED:-false}
+  ALLOW_DEMO_MODE_IN_PRODUCTION: ${ALLOW_DEMO_MODE_IN_PRODUCTION:-false}
+  BILLING_PROVIDER: ${BILLING_PROVIDER:-mock}
+  BILLING_CURRENCY: ${BILLING_CURRENCY:-USD}
+  COINBASE_API_KEY: ${COINBASE_API_KEY:-}
+  COINBASE_WEBHOOK_SECRET: ${COINBASE_WEBHOOK_SECRET:-}
+  COINBASE_CHARGE_URL: ${COINBASE_CHARGE_URL:-https://api.commerce.coinbase.com/charges}
+  ENABLE_LIFETIME_CHECKOUT: ${ENABLE_LIFETIME_CHECKOUT:-false}
+  ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-replace-admin-password-before-deploy}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-deckpilot}
+      POSTGRES_USER: ${POSTGRES_USER:-deckpilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-deckpilot}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-deckpilot} -d ${POSTGRES_DB:-deckpilot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    environment:
+      <<: *api-env
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=3).read()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    environment:
+      <<: *api-env
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: python /srv/worker/app/main.py
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    environment:
+      NEXT_PUBLIC_API_BASE_PATH: ${NEXT_PUBLIC_API_BASE_PATH:-/api/v1}
+      INTERNAL_API_URL: ${INTERNAL_API_URL:-http://api:8000/api/v1}
+      INTERNAL_API_ORIGIN: ${INTERNAL_API_ORIGIN:-http://api:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+volumes:
+  postgres-data:

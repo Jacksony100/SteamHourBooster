@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    env:
+      APP_ENV: test
+      DATABASE_URL: sqlite:///./test.db
+      REDIS_URL: redis://localhost:6379/0
+      SECRET_KEY: test-secret-key-that-is-long-enough-for-ci
+      ENCRYPTION_KEY: 0J4FyJwHnYmeFz7r5Zk8F0KJxl-2mFY9hqqIetQxZj0=
+      STEAM_TEST_MODE: "true"
+      STEAM_INTEGRATION_MODE: demo
+      BILLING_PROVIDER: mock
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: apps/api/requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - run: python -m ruff check .
+      - run: python -m pytest tests
+      - run: python -m pip_audit -r requirements.txt
+
+  web:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_API_BASE_PATH: /api/v1
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm audit --audit-level=high
+      - run: npm run build
+
+  legacy-flask:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: legacy/flask
+    env:
+      FLASK_ENV: test
+      SECRET_KEY: test-secret-key-that-is-long-enough-for-ci
+      ENCRYPTION_KEY: 0J4FyJwHnYmeFz7r5Zk8F0KJxl-2mFY9hqqIetQxZj0=
+      CSRF_ENABLED: "0"
+      RATE_LIMIT_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: legacy/flask/requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - run: python -m pytest tests
+      - run: python -m pip_audit -r requirements.txt
+
+  docker-config:
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: test-secret-key-that-is-long-enough-for-ci
+      ENCRYPTION_KEY: 0J4FyJwHnYmeFz7r5Zk8F0KJxl-2mFY9hqqIetQxZj0=
+      ADMIN_PASSWORD: admin-password
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker compose -f docker-compose.yml -f docker-compose.dev.yml config --quiet
+
+  docker-images:
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: test-secret-key-that-is-long-enough-for-ci
+      ENCRYPTION_KEY: 0J4FyJwHnYmeFz7r5Zk8F0KJxl-2mFY9hqqIetQxZj0=
+      ADMIN_PASSWORD: admin-password
+      NEXT_PUBLIC_API_BASE_PATH: /api/v1
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f docker/api.Dockerfile . -t deckpilot-api:ci
+      - run: docker build -f docker/worker.Dockerfile . -t deckpilot-worker:ci
+      - run: docker build -f docker/web.Dockerfile . -t deckpilot-web:ci

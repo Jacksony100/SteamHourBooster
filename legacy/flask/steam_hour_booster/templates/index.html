@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>Панель | Steam Hour Boost</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Навигация">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M6 16V8l6-4 6 4v8l-6 4Z"/><path d="M9 10h6M9 14h6"/></svg>
+        </span>
+        <span class="brand-copy">
+          <span class="brand-title">Steam Hour Boost</span>
+          <span class="brand-subtitle">Панель сессий</span>
+        </span>
+      </a>
+
+      <nav class="nav-list" aria-label="Разделы">
+        <a class="nav-item active" href="#overview">Обзор</a>
+        <a class="nav-item" href="#accounts">Аккаунты</a>
+        <a class="nav-item" href="#sessions">Сессии</a>
+        <a class="nav-item" href="#activity">Журнал</a>
+        {% if is_admin %}
+          <a class="nav-item" href="/admin">Админ-панель</a>
+        {% endif %}
+      </nav>
+
+      <div class="notice">
+        <strong>Безопасный режим.</strong>
+        <span>Только ручные сессии для аккаунтов, которыми вы владеете. Без обходов и скрытых режимов.</span>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="btn btn-ghost" type="button" data-theme-toggle>Тема: <span data-theme-label>Тёмная</span></button>
+        <button class="btn btn-ghost" type="button" data-lang-toggle>Язык: <span data-i18n="lang_label">Русский</span></button>
+        <a class="btn btn-danger" href="/logout">Выйти</a>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">Живая панель управления</div>
+          <h1 class="page-title">Панель</h1>
+          <p class="muted">Управляйте аккаунтами, выбранными играми и видимыми сессиями из одной панели.</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="user-chip" aria-label="Текущий пользователь">
+            <span class="avatar">{{ (username or 'U')[:1].upper() }}</span>
+            <span>{{ username }}</span>
+          </div>
+          {% if is_admin %}
+            <a class="btn btn-ghost" href="/admin">Админ-панель</a>
+          {% endif %}
+        </div>
+      </header>
+
+      <section id="overview" class="section metrics-grid" aria-label="Метрики">
+        <article class="metric-tile">
+          <span class="metric-label">Аккаунты</span>
+          <div id="totalAccounts" class="metric-value">0</div>
+        </article>
+        <article class="metric-tile">
+          <span class="metric-label">Онлайн</span>
+          <div id="onlineAccounts" class="metric-value">0</div>
+        </article>
+        <article class="metric-tile">
+          <span class="metric-label">Активные сессии</span>
+          <div id="activeSessions" class="metric-value">0</div>
+        </article>
+        <article class="metric-tile">
+          <span class="metric-label">Выбранные игры</span>
+          <div id="selectedGames" class="metric-value">0</div>
+        </article>
+      </section>
+
+      <div class="dashboard-grid">
+        <section id="accounts" class="section account-board glass" aria-label="Аккаунты">
+          <div class="section-head">
+            <div>
+              <h2>Аккаунты</h2>
+              <p>Добавление, вход, выбор игр и запуск видимой активности.</p>
+            </div>
+          </div>
+
+          <form id="addAccountForm" class="account-form" aria-label="Добавить аккаунт">
+            <div class="field field-compact">
+              <label class="sr-only" for="username">Steam логин</label>
+              <input id="username" class="input" type="text" placeholder="Steam логин" autocomplete="username" required>
+            </div>
+            <div class="field field-compact">
+              <label class="sr-only" for="password">Steam пароль</label>
+              <input id="password" class="input" type="password" placeholder="Steam пароль" autocomplete="current-password" required>
+            </div>
+            <button class="btn btn-primary" type="submit">Добавить</button>
+          </form>
+
+          <div class="account-toolbar mt-14">
+            <span class="muted">Статусы обновляются после действий пользователя.</span>
+          </div>
+
+          <div id="accountsList" class="accounts-grid" aria-live="polite">
+            <div class="skeleton-list">
+              <div class="skeleton"></div>
+              <div class="skeleton"></div>
+              <div class="skeleton"></div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="side-stack">
+          <section class="panel glass selected-panel" aria-label="Выбранный аккаунт">
+            <div id="selectedAccountPanel"></div>
+          </section>
+
+          <section id="sessions" class="panel glass" aria-label="Активные сессии">
+            <div class="section-head">
+              <div>
+                <h3>Активные сессии</h3>
+                <p>Запущенные вручную действия.</p>
+              </div>
+            </div>
+            <div id="sessionsList" class="session-list"></div>
+          </section>
+
+          <section class="panel glass" aria-label="Статус ограничений">
+            <div class="section-head">
+              <div>
+                <h3>Проверка ограничений</h3>
+                <p>Результат последней проверки.</p>
+              </div>
+            </div>
+            <div id="banStatus" class="ban-card">
+              <div class="empty-state">
+                <h3>Нет данных</h3>
+                <p>Нажмите “Проверка” у аккаунта, чтобы увидеть статус.</p>
+              </div>
+            </div>
+          </section>
+
+          <section id="activity" class="panel glass" aria-label="Журнал действий">
+            <div class="section-head">
+              <div>
+                <h3>Журнал действий</h3>
+                <p>Локальная история последних операций.</p>
+              </div>
+            </div>
+            <div id="activityList" class="activity-list"></div>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <div id="steamGuardModal" class="modal-backdrop" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="steamGuardTitle">
+    <div class="modal-panel compact">
+      <div class="modal-head">
+        <h2 id="steamGuardTitle">Steam Guard</h2>
+        <button class="btn btn-ghost btn-icon" type="button" data-modal-close="steamGuardModal" aria-label="Закрыть">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="steamGuardCode">Код из email или приложения</label>
+          <input id="steamGuardCode" class="input" type="text" placeholder="ABCDE" autocomplete="one-time-code">
+          <span class="field-hint">Код используется только для текущего входа.</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" type="button" data-modal-close="steamGuardModal">Отмена</button>
+        <button id="confirmSteamGuardBtn" class="btn btn-primary" type="button">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gamesModal" class="modal-backdrop" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="gamesTitle">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <div>
+          <h2 id="gamesTitle">Выбор игр</h2>
+          <p class="muted">Выберите игры для видимой сессии активности.</p>
+        </div>
+        <button class="btn btn-ghost btn-icon" type="button" data-modal-close="gamesModal" aria-label="Закрыть">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="game-picker-toolbar">
+          <label class="sr-only" for="gameSearch">Поиск игр</label>
+          <input id="gameSearch" class="search-input" type="search" placeholder="Поиск по библиотеке">
+          <span class="badge running">Steam API</span>
+        </div>
+        <div id="gamesList" class="game-grid"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" type="button" data-modal-close="gamesModal">Отмена</button>
+        <button id="saveGamesBtn" class="btn btn-primary" type="button">Сохранить выбор</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="modal-backdrop" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal-panel compact">
+      <div class="modal-head">
+        <h2 id="confirmTitle" data-confirm-title>Подтвердите действие</h2>
+        <button class="btn btn-ghost btn-icon" type="button" data-modal-close="confirmModal" aria-label="Закрыть">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="lead lead-compact" data-confirm-message></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" type="button" data-modal-close="confirmModal">Отмена</button>
+        <button class="btn btn-primary" type="button" data-confirm-accept>Подтвердить</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toastStack" class="toast-stack" aria-live="polite"></div>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/accounts.js') }}"></script>
+</body>
+</html>

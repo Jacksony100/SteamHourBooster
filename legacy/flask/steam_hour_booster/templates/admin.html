@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>Админ-панель | Steam Hour Boost</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <main class="admin-layout">
+    <header class="topbar">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5Z"/><path d="M9 12l2 2 4-5"/></svg>
+        </span>
+        <span class="brand-copy">
+          <span class="brand-title">Админ-панель</span>
+          <span class="brand-subtitle">Пользователи, роли и подписки</span>
+        </span>
+      </a>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" type="button" data-theme-toggle>Тема: <span data-theme-label>Тёмная</span></button>
+        <a class="btn btn-ghost" href="/">В dashboard</a>
+      </div>
+    </header>
+
+    <section class="section admin-stats" aria-label="Сводка">
+      <article class="admin-stat">
+        <span class="metric-label">Всего пользователей</span>
+        <div id="adminUsersTotal" class="metric-value">0</div>
+      </article>
+      <article class="admin-stat">
+        <span class="metric-label">Активные</span>
+        <div id="adminUsersActive" class="metric-value">0</div>
+      </article>
+      <article class="admin-stat">
+        <span class="metric-label">С подпиской</span>
+        <div id="adminUsersSubscribed" class="metric-value">0</div>
+      </article>
+      <article class="admin-stat">
+        <span class="metric-label">Администраторы</span>
+        <div id="adminUsersAdmins" class="metric-value">0</div>
+      </article>
+    </section>
+
+    <section class="admin-card glass">
+      <div class="section-head">
+        <div>
+          <h1 class="page-title">Пользователи</h1>
+          <p>Поиск, фильтры, подписки, бан и права администратора.</p>
+        </div>
+      </div>
+
+      <div class="admin-toolbar">
+        <form class="account-form" method="GET" action="/admin" aria-label="Поиск на сервере">
+          <label class="sr-only" for="q">Поиск пользователя</label>
+          <input id="q" class="search-input" type="search" name="q" placeholder="Поиск пользователя..." value="{{ query }}">
+          <button class="btn btn-primary" type="submit">Искать</button>
+        </form>
+        <div class="topbar-actions">
+          <label class="sr-only" for="adminLocalSearch">Фильтр по таблице</label>
+          <input id="adminLocalSearch" class="search-input" type="search" placeholder="Фильтр на странице">
+          <label class="sr-only" for="adminRoleFilter">Фильтр ролей</label>
+          <select id="adminRoleFilter" class="select" aria-label="Фильтр ролей">
+            <option value="all">Все роли</option>
+            <option value="admin">Админы</option>
+            <option value="user">Пользователи</option>
+          </select>
+          <label class="sr-only" for="adminStatusFilter">Фильтр статуса</label>
+          <select id="adminStatusFilter" class="select" aria-label="Фильтр статуса">
+            <option value="all">Все статусы</option>
+            <option value="active">Активные</option>
+            <option value="banned">Забаненные</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="admin-table-wrap">
+        <table class="admin-table" aria-label="Список пользователей">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Пользователь</th>
+              <th>Подписка</th>
+              <th>Последний IP</th>
+              <th>Последний визит</th>
+              <th>Статус</th>
+              <th>Роль</th>
+              <th>Управление</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+              <tr
+                data-user-row
+                data-username="{{ user.username|lower }}"
+                data-admin="{{ user.is_admin }}"
+                data-banned="{{ user.banned }}"
+                data-subscription="{{ 1 if user.subscription_end else 0 }}"
+              >
+                <td>#{{ user.id }}</td>
+                <td>
+                  <strong>{{ user.username }}</strong>
+                  <div class="activity-meta">ID пользователя {{ user.id }}</div>
+                </td>
+                <td>
+                  {% if user.subscription_end %}
+                    <span class="badge running">до {{ user.subscription_end }}</span>
+                  {% else %}
+                    <span class="badge offline">нет подписки</span>
+                  {% endif %}
+                </td>
+                <td>{{ user.last_ip or "нет данных" }}</td>
+                <td>{{ user.last_seen or "нет данных" }}</td>
+                <td>
+                  {% if user.banned == 1 %}
+                    <span class="badge banned">Забанен</span>
+                  {% else %}
+                    <span class="badge online">Активен</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if user.is_admin == 1 %}
+                    <span class="badge running">Админ</span>
+                  {% else %}
+                    <span class="badge offline">Пользователь</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <form method="POST" class="feature-row" aria-label="Управление пользователем {{ user.username }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <label class="sr-only" for="sub_{{ user.id }}">Подписка</label>
+                    <select id="sub_{{ user.id }}" name="subscription_duration" class="select">
+                      <option value="0">Нет подписки</option>
+                      <option value="1_week">1 неделя</option>
+                      <option value="1_month">1 месяц</option>
+                      <option value="3_months">3 месяца</option>
+                      <option value="6_months">6 месяцев</option>
+                      <option value="12_months">12 месяцев</option>
+                      <option value="lifetime">Lifetime</option>
+                    </select>
+                    <div class="toggle-row">
+                      <label class="toggle-field">
+                        <input type="checkbox" name="is_admin" value="1" {% if user.is_admin == 1 %}checked{% endif %}>
+                        Админ
+                      </label>
+                      <label class="toggle-field">
+                        <input type="checkbox" name="banned" value="1" {% if user.banned == 1 %}checked{% endif %}>
+                        Бан
+                      </label>
+                    </div>
+                    <button class="btn btn-primary" type="submit">Сохранить</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <div id="toastStack" class="toast-stack" aria-live="polite"></div>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>

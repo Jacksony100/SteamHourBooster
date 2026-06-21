@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>Оплата | Steam Hour Boost</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <main class="page page-spaced">
+    <header class="topbar">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></span>
+        <span class="brand-copy">
+          <span class="brand-title">Steam Hour Boost</span>
+          <span class="brand-subtitle">Оплата</span>
+        </span>
+      </a>
+      <a class="btn btn-ghost" href="/">В dashboard</a>
+    </header>
+
+    <section class="checkout-shell">
+      <div>
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Премиум-доступ</div>
+            <h1 class="page-title">Выберите период подписки</h1>
+            <p>Оплата создаёт pending checkout. Доступ активируется после подтверждения платежа администратором или webhook-логикой.</p>
+          </div>
+        </div>
+
+        <form method="POST" class="pricing-grid" aria-label="Выбор тарифа">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="payment_method" value="crypto">
+          {% for plan in [
+            ("1_week", "Week", "$10", "7 дней доступа"),
+            ("1_month", "Month", "$15", "1 месяц"),
+            ("3_months", "3 Months", "$25", "90 дней"),
+            ("6_months", "6 Months", "$40", "180 дней"),
+            ("lifetime", "Lifetime", "$150", "постоянный доступ")
+          ] %}
+            <button class="plan-card {% if plan[0] == '3_months' %}featured{% endif %}" type="submit" name="plan" value="{{ plan[0] }}">
+              <span class="plan-name">{{ plan[1] }}</span>
+              <span class="plan-price">{{ plan[2] }} <span>{{ plan[3] }}</span></span>
+              <span class="muted">Крипто-оплата</span>
+              <span class="btn btn-primary">Продолжить</span>
+            </button>
+          {% endfor %}
+        </form>
+      </div>
+
+      <aside class="checkout-summary glass">
+        <div class="section-head">
+          <div>
+            <h3>Порядок оплаты</h3>
+            <p>Чистый и проверяемый flow.</p>
+          </div>
+        </div>
+        <div class="pending-strip">
+          <span class="badge running">Ожидает оплаты</span>
+          <span>После выбора тарифа будет создан платёж.</span>
+        </div>
+        <div class="activity-list mt-14">
+          <div class="activity-item"><div class="activity-title">1. Выбор тарифа</div><div class="activity-meta">Период доступа и цена фиксируются.</div></div>
+          <div class="activity-item"><div class="activity-title">2. Оплата</div><div class="activity-meta">Переход на защищённую страницу провайдера.</div></div>
+          <div class="activity-item"><div class="activity-title">3. Активация</div><div class="activity-meta">Подписка будет отражена в dashboard.</div></div>
+        </div>
+      </aside>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+</body>
+</html>

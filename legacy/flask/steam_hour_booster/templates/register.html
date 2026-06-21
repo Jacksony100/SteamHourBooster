@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>Регистрация | Steam Hour Boost</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <main class="page auth-shell">
+    <section class="auth-visual glass" aria-label="Онбординг">
+      <div>
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 15c4-9 12-9 16 0"/><path d="M8 15v2a4 4 0 0 0 8 0v-2"/><path d="M10 11h.01M14 11h.01"/></svg>
+          </span>
+          <span class="brand-copy">
+            <span class="brand-title">Steam Hour Boost</span>
+            <span class="brand-subtitle">Панель аккаунтов</span>
+          </span>
+        </div>
+
+        <div class="eyebrow mt-42">Новая рабочая область</div>
+        <h1 class="auth-title">Начните с безопасной панели, а не с хаотичного списка кнопок.</h1>
+        <p class="lead">Создайте доступ, добавьте собственные аккаунты и управляйте сессиями через понятные статусы, журнал действий и ручные ограничения.</p>
+      </div>
+
+      <div class="feature-row">
+        <div class="notice">
+          <strong>Важно.</strong>
+          <span>Сервис не предназначен для обхода банов, Steam Guard, лимитов или защит платформы.</span>
+        </div>
+        <div class="trust-grid">
+          <div class="trust-item"><strong>Прозрачно</strong><span>Каждая сессия отображается в интерфейсе.</span></div>
+          <div class="trust-item"><strong>Контроль</strong><span>Остановка доступна вручную в любой момент.</span></div>
+          <div class="trust-item"><strong>Аккуратно</strong><span>Данные разделены по сервисам безопасности.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="auth-card" aria-label="Форма регистрации">
+      <h1>Регистрация</h1>
+      <p>Создайте аккаунт для доступа к dashboard.</p>
+
+      {% if error %}
+        <div class="alert" role="alert">{{ error }}</div>
+      {% endif %}
+
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field">
+          <label for="username">Логин</label>
+          <input id="username" class="input" type="text" name="username" autocomplete="username" placeholder="например, alex" required>
+        </div>
+        <div class="field">
+          <label for="password">Пароль</label>
+          <input id="password" class="input" type="password" name="password" autocomplete="new-password" placeholder="минимум 8 символов" required>
+          <span class="field-hint">Используйте уникальный пароль. Он будет сохранён только в виде хэша.</span>
+        </div>
+        <div class="notice notice-spaced">
+          <strong>Условия безопасности.</strong>
+          <span>Добавляйте только аккаунты, которыми владеете. Не используйте сервис для обхода ограничений или защит Steam.</span>
+        </div>
+        <button class="btn btn-success btn-block" type="submit">Создать аккаунт</button>
+      </form>
+
+      <div class="auth-footer">
+        <span>Уже есть доступ?</span>
+        <a class="auth-link" href="/login">Войти</a>
+      </div>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+</body>
+</html>

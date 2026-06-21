@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>Подписка | Steam Hour Boost</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <main class="page page-spaced">
+    <header class="topbar">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v18M4 10h16M7 17h10"/></svg></span>
+        <span class="brand-copy">
+          <span class="brand-title">Steam Hour Boost</span>
+          <span class="brand-subtitle">Подписка нужна для dashboard</span>
+        </span>
+      </a>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" type="button" data-theme-toggle><span data-theme-label>Тёмная</span></button>
+        <a class="btn btn-ghost" href="/logout">Выйти</a>
+      </div>
+    </header>
+
+    <section class="glass auth-visual hero-compact">
+      <div class="eyebrow">Доступ не активирован</div>
+      <h1 class="page-title">Выберите тариф для безопасного управления сессиями.</h1>
+      <p class="lead">Подписка открывает dashboard, управление аккаунтами, выбор игр, журнал действий и аккуратные статусы без скрытых обходов.</p>
+      <a class="btn btn-primary inline-fit" href="/buy_subscription">Перейти к оплате</a>
+    </section>
+
+    <section class="section">
+      <div class="pricing-grid">
+        {% for plan in [
+          ("Week", "$10", "Тестовый доступ"),
+          ("Month", "$15", "Для спокойного старта"),
+          ("3 Months", "$25", "Оптимальный период"),
+          ("6 Months", "$40", "Для постоянной панели"),
+          ("Lifetime", "$150", "Навсегда")
+        ] %}
+          <article class="plan-card {% if plan[0] == '3 Months' %}featured{% endif %}">
+            <div class="plan-name">{{ plan[0] }}</div>
+            <div class="plan-price">{{ plan[1] }} <span>/ доступ</span></div>
+            <p class="muted">{{ plan[2] }}</p>
+            <a class="btn btn-ghost" href="/buy_subscription">Выбрать</a>
+          </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="section">
+      <table class="comparison-table glass" aria-label="Сравнение возможностей">
+        <thead>
+          <tr>
+            <th>Возможность</th>
+            <th>Без подписки</th>
+            <th>С подпиской</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Панель аккаунтов</td><td>Недоступна</td><td>Доступна</td></tr>
+          <tr><td>Выбор игр</td><td>Недоступен</td><td>Ручной выбор</td></tr>
+          <tr><td>Журнал активности</td><td>Недоступен</td><td>В интерфейсе</td></tr>
+          <tr><td>Safety notice</td><td>Есть</td><td>Есть</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+</body>
+</html>

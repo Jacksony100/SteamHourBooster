@@ -1,0 +1,17 @@
+services:
+  api:
+    volumes:
+      - ./apps/api:/srv/api
+    command: sh -c "alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.dev.Dockerfile
+    volumes:
+      - ./apps/web:/app
+      - web-node-modules:/app/node_modules
+    command: npm run dev -- -p 3000
+
+volumes:
+  web-node-modules:

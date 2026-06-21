@@ -1,0 +1,7 @@
+{
+  "name": "@steam-hour-booster/shared",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts"
+}

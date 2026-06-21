@@ -1,0 +1,19 @@
+[tool.ruff]
+line-length = 160
+target-version = "py312"
+exclude = [
+  "legacy",
+  ".git",
+  ".venv",
+  "venv",
+  "__pycache__",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["B008"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

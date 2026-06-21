@@ -1,0 +1,87 @@
+:root {
+  color-scheme: dark;
+  --shb-bg: #05070d;
+  --shb-bg-2: #080b12;
+  --shb-bg-soft: #0d1422;
+  --shb-surface: rgba(255, 255, 255, 0.06);
+  --shb-surface-strong: rgba(255, 255, 255, 0.1);
+  --shb-border: rgba(255, 255, 255, 0.12);
+  --shb-border-strong: rgba(255, 255, 255, 0.2);
+  --shb-text: #f4f8ff;
+  --shb-muted: #8ea0b8;
+  --shb-primary: #38bdf8;
+  --shb-primary-strong: #0ea5e9;
+  --shb-success: #46f2a6;
+  --shb-warning: #fbbf24;
+  --shb-danger: #fb3f7a;
+  --shb-violet: #a78bfa;
+  --shb-shadow-glass: 0 28px 90px rgba(0, 0, 0, 0.34);
+  --shb-shadow-card-3d: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 18px 55px rgba(0, 0, 0, 0.28);
+  --shb-glow-primary: 0 0 40px rgba(56, 189, 248, 0.26);
+  --shb-glow-success: 0 0 30px rgba(70, 242, 166, 0.22);
+  --shb-glow-danger: 0 0 30px rgba(251, 63, 122, 0.24);
+}
+
+.shb-page {
+  min-height: 100vh;
+  background:
+    linear-gradient(135deg, rgba(5, 7, 13, 0.99), rgba(8, 11, 18, 0.98) 52%, rgba(6, 19, 33, 0.99)),
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+  background-size: auto, 48px 48px, 48px 48px;
+  color: var(--shb-text);
+}
+
+.shb-glass {
+  border: 1px solid var(--shb-border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.045));
+  box-shadow: var(--shb-shadow-glass);
+  backdrop-filter: blur(22px);
+}
+
+.shb-premium-card {
+  border: 1px solid var(--shb-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.035)),
+    rgba(255, 255, 255, 0.02);
+  border-radius: 22px;
+  box-shadow: var(--shb-shadow-card-3d);
+  backdrop-filter: blur(18px);
+}
+
+.shb-button-primary {
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--shb-primary), #2563eb 52%, var(--shb-success));
+  color: #ffffff;
+  box-shadow: var(--shb-glow-primary);
+  font-weight: 700;
+}
+
+.shb-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--shb-muted);
+}
+
+.shb-status-dot.is-online,
+.shb-status-dot.is-success {
+  background: var(--shb-success);
+  box-shadow: var(--shb-glow-success);
+}
+
+.shb-status-dot.is-session {
+  background: var(--shb-primary);
+  box-shadow: var(--shb-glow-primary);
+}
+
+.shb-status-dot.is-warning {
+  background: var(--shb-warning);
+}
+
+.shb-status-dot.is-error {
+  background: var(--shb-danger);
+  box-shadow: var(--shb-glow-danger);
+}

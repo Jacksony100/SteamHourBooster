@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+.pytest_cache/
 *.py[cod]
 *.pyo
 *.pyd
@@ -25,6 +26,15 @@ key.key
 
 # Logs
 *.log
+logs/
+
+# Node / Next.js
+node_modules/
+.next/
+.vercel/
+out/
+coverage/
+*.tsbuildinfo
 
 # OS
 .DS_Store
@@ -33,3 +43,13 @@ Thumbs.db
 # Flask cache
 instance/
 *.pyc
+
+# Project snapshot archives (local backups, never commit)
+*.zip
+
+# Design import working dir (extracted from design archive)
+.design-import/
+
+# Build artifacts (belt-and-suspenders; also covered above)
+apps/web/.next/
+apps/web/tsconfig.tsbuildinfo
