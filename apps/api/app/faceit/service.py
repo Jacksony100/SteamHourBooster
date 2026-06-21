@@ -23,9 +23,15 @@ FACEIT_WEB_API = "https://api.faceit.com"             # public web endpoints, ke
 STEAM_API = "https://api.steampowered.com"
 STEAM_COMMUNITY = "https://steamcommunity.com"
 
+# Mimic the faceit.com frontend's own XHR calls to reduce Cloudflare friction on the
+# keyless endpoints. (Stats are sometimes still bot-challenged; set FACEIT_API_KEY for
+# reliable full stats.)
 _KEYLESS_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; DeckPilot-FaceitFinder/1.0)",
-    "Accept": "application/json",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.faceit.com/",
+    "Origin": "https://www.faceit.com",
 }
 
 _PROFILES_RE = re.compile(r"steamcommunity\.com/profiles/(\d{17})")
@@ -96,7 +102,21 @@ def resolve_steamid64(steam_input: str) -> str | None:
     return None
 
 
-def _result(steamid64: str, profile: dict, lifetime: dict) -> dict:
+def _payload(data) -> dict:
+    """Extract a dict payload from a keyless FACEIT response (handles dict/list/None)."""
+    if isinstance(data, dict):
+        inner = data.get("payload", data)
+        if isinstance(inner, list):
+            return inner[0] if inner and isinstance(inner[0], dict) else {}
+        return inner if isinstance(inner, dict) else {}
+    if isinstance(data, list):
+        return data[0] if data and isinstance(data[0], dict) else {}
+    return {}
+
+
+def _result(steamid64: str, profile: dict, lifetime) -> dict:
+    if not isinstance(lifetime, dict):
+        lifetime = {}
     cs2 = profile.get("cs2") or {}
 
     def num(*keys: str):
@@ -134,17 +154,15 @@ def _result(steamid64: str, profile: dict, lifetime: dict) -> dict:
 
 def _find_via_keyless(steamid64: str) -> dict | None:
     # 1. SteamID64 -> FACEIT player GUID (try cs2 then csgo).
-    lookup = _get_json(f"{FACEIT_WEB_API}/users/v1/users", params={"game": "cs2", "game_id": steamid64})
-    if not (lookup or {}).get("payload"):
-        lookup = _get_json(f"{FACEIT_WEB_API}/users/v1/users", params={"game": "csgo", "game_id": steamid64})
-    payload = (lookup or {}).get("payload") or {}
+    payload = _payload(_get_json(f"{FACEIT_WEB_API}/users/v1/users", params={"game": "cs2", "game_id": steamid64}))
+    if not payload:
+        payload = _payload(_get_json(f"{FACEIT_WEB_API}/users/v1/users", params={"game": "csgo", "game_id": steamid64}))
     guid = payload.get("id") or payload.get("guid")
     if not guid:
         return None
 
     # 2. Full profile by GUID.
-    prof = _get_json(f"{FACEIT_WEB_API}/users/v1/users/{guid}")
-    p = (prof or {}).get("payload") or payload
+    p = _payload(_get_json(f"{FACEIT_WEB_API}/users/v1/users/{guid}")) or payload
     games = p.get("games") or {}
     cs2 = games.get("cs2") or games.get("csgo") or {}
     nickname = p.get("nickname")
@@ -162,10 +180,45 @@ def _find_via_keyless(steamid64: str) -> dict | None:
         "source": "faceit_web",
     }
 
-    # 3. Lifetime stats (best-effort; shape varies, so map defensively).
+    # 3. Lifetime stats. The keyless endpoint returns FACEIT's internal coded keys
+    # (m1, k5, s0, ...) rather than human names; translate the reliable ones.
     stats_raw = _get_json(f"{FACEIT_WEB_API}/stats/v1/stats/users/{guid}/games/cs2")
-    lifetime = stats_raw.get("lifetime") if isinstance(stats_raw, dict) else {}
-    return _result(steamid64, profile, lifetime or {})
+    raw_life = stats_raw.get("lifetime") if isinstance(stats_raw, dict) else {}
+    lifetime = _decode_keyless_lifetime(raw_life if isinstance(raw_life, dict) else {})
+    return _result(steamid64, profile, lifetime)
+
+
+def _decode_keyless_lifetime(life: dict) -> dict:
+    """Map FACEIT's coded keyless lifetime keys to the human keys _result expects.
+
+    Best-effort: the level/ELO headline comes from the profile and is reliable; this
+    decoding of the undocumented coded stats may need tuning if FACEIT changes them.
+    """
+
+    def g(key: str):
+        value = life.get(key)
+        return None if value in (None, "") else value
+
+    out: dict = {}
+    if g("m1") is not None:
+        out["Matches"] = g("m1")
+    if g("k5") is not None:
+        out["Average K/D Ratio"] = g("k5")
+    if g("m7") is not None:
+        out["Average Headshots %"] = g("m7")
+    if g("s1") is not None:
+        out["Current Win Streak"] = g("s1")
+    if g("s7") is not None:
+        out["Longest Win Streak"] = g("s7")
+    if isinstance(life.get("s0"), list):
+        out["Recent Results"] = life["s0"]
+    try:
+        matches, wins = int(life.get("m1")), int(life.get("m2"))
+        if matches > 0:
+            out["Win Rate %"] = str(round(wins / matches * 100))
+    except (TypeError, ValueError):
+        pass
+    return out
 
 
 def _find_via_official(steamid64: str) -> dict | None:

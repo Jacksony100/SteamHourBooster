@@ -4,7 +4,10 @@ from app.core.models import Subscription, User
 from app.seed import seed
 
 
-def test_seed_creates_admin_only_by_default(client):
+def test_seed_creates_admin_only_by_default(client, monkeypatch):
+    # Pin demo seeding off so the test does not depend on ambient .env / environment.
+    settings = get_settings().model_copy(update={"seed_demo_user": False})
+    monkeypatch.setattr("app.seed.get_settings", lambda: settings)
     db = SessionLocal()
     try:
         seed(db)
