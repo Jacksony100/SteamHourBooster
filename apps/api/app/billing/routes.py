@@ -2,7 +2,15 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.billing.schemas import CheckoutRequest, CheckoutResponse, PaymentResponse, PlanResponse, SubscriptionResponse, WebhookResponse
-from app.billing.service import create_checkout, entitlement, plan_features, process_provider_event, sync_default_plans
+from app.billing.service import (
+    cancel_subscription,
+    create_checkout,
+    entitlement,
+    plan_features,
+    process_provider_event,
+    reactivate_subscription,
+    sync_default_plans,
+)
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.deps import current_user, require_csrf
@@ -37,6 +45,8 @@ def serialize_subscription(info: dict) -> SubscriptionResponse:
         expires_at=info["expires_at"],
         ends_at=subscription.ends_at,
         manual_override=subscription.manual_override,
+        canceled_at=info.get("canceled_at"),
+        cancel_at_period_end=info.get("cancel_at_period_end", False),
         account_limit=info["account_limit"],
         active_session_limit=info["active_session_limit"],
         support_level=info["support_level"],
@@ -76,6 +86,18 @@ def subscription(user: User = Depends(current_user), db: Session = Depends(get_d
 def payments(user: User = Depends(current_user), db: Session = Depends(get_db)):
     rows = db.query(Payment).filter(Payment.user_id == user.id).order_by(Payment.id.desc()).limit(20).all()
     return [serialize_payment(payment) for payment in rows]
+
+
+@router.post("/cancel", response_model=SubscriptionResponse, dependencies=[Depends(require_csrf)])
+def cancel(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    cancel_subscription(db, user)
+    return serialize_subscription(entitlement(db, user))
+
+
+@router.post("/reactivate", response_model=SubscriptionResponse, dependencies=[Depends(require_csrf)])
+def reactivate(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    reactivate_subscription(db, user)
+    return serialize_subscription(entitlement(db, user))
 
 
 @router.post("/checkout", response_model=CheckoutResponse, dependencies=[Depends(require_csrf), Depends(rate_limit("checkout", 10, 60 * 60))])

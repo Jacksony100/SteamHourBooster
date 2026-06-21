@@ -23,6 +23,8 @@ class SubscriptionResponse(BaseModel):
     expires_at: datetime | None = None
     ends_at: datetime | None
     manual_override: bool = False
+    canceled_at: datetime | None = None
+    cancel_at_period_end: bool = False
     account_limit: int
     active_session_limit: int
     support_level: str

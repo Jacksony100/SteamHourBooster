@@ -7,6 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.audit.service import write_audit
+from app.core.mailer import send_email_verification_email, send_password_reset_email
 from app.core.models import (
     AccountGame,
     PasswordResetToken,
@@ -136,7 +137,9 @@ def request_password_reset(db: Session, identifier: str, request: Request | None
     normalized = identifier.strip().lower()
     user = db.query(User).filter(or_(User.username == identifier, User.email == normalized)).one_or_none()
     if user and not user.banned:
-        issue_password_reset_token(db, user, request)
+        raw_token = issue_password_reset_token(db, user, request)
+        if user.email:
+            send_password_reset_email(user.email, raw_token)
         write_audit(db, "auth.password_reset_requested", "user", user.id, None)
 
 
@@ -174,6 +177,7 @@ def issue_email_verification_token(db: Session, user: User, email: str | None = 
     user.email_verification_token_hash = hash_token(raw_token)
     user.email_verification_sent_at = now_utc()
     db.commit()
+    send_email_verification_email(user.email, raw_token)
     write_audit(db, "auth.email_verification_requested", "user", user.id, user)
     return raw_token
 

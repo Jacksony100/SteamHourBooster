@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.audit.service import write_audit
@@ -173,17 +174,51 @@ def entitlement(db: Session, user: User) -> dict:
     plan = subscription_plan(db, subscription)
     expires_at = as_aware(subscription.expires_at or subscription.ends_at)
     is_active = not user.banned and subscription.status in ACTIVE_STATUSES and (expires_at is None or expires_at >= now_utc())
+    cancel_at_period_end = bool(subscription.canceled_at) and subscription.status in ACTIVE_STATUSES and expires_at is not None
     return {
         "active": is_active,
         "status": "banned" if user.banned else subscription.status,
         "plan": plan,
         "subscription": subscription,
         "expires_at": expires_at,
+        "canceled_at": as_aware(subscription.canceled_at),
+        "cancel_at_period_end": cancel_at_period_end,
         "account_limit": plan.account_limit if plan else 0,
         "active_session_limit": plan.active_session_limit if plan else 0,
         "support_level": plan.support_level if plan else "none",
         "features": plan_features(plan) if plan else [],
     }
+
+
+def cancel_subscription(db: Session, user: User) -> Subscription:
+    """Cancel the subscription. Paid plans keep access until period end; plans
+    with no expiry (lifetime / open-ended) are deactivated immediately."""
+
+    subscription = current_subscription(db, user)
+    if subscription.status not in ACTIVE_STATUSES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No active subscription to cancel")
+    now = now_utc()
+    subscription.canceled_at = now
+    subscription.updated_at = now
+    if as_aware(subscription.expires_at or subscription.ends_at) is None:
+        # Nothing to ride out — cancel takes effect now.
+        subscription.status = "canceled"
+    db.commit()
+    db.refresh(subscription)
+    write_audit(db, "billing.subscription_canceled", "subscription", subscription.id, user, {"at_period_end": subscription.status in ACTIVE_STATUSES})
+    return subscription
+
+
+def reactivate_subscription(db: Session, user: User) -> Subscription:
+    subscription = current_subscription(db, user)
+    if not subscription.canceled_at or subscription.status not in ACTIVE_STATUSES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No pending cancellation to reactivate")
+    subscription.canceled_at = None
+    subscription.updated_at = now_utc()
+    db.commit()
+    db.refresh(subscription)
+    write_audit(db, "billing.subscription_reactivated", "subscription", subscription.id, user)
+    return subscription
 
 
 def require_active_entitlement(db: Session, user: User) -> dict:
@@ -297,7 +332,12 @@ def process_provider_event(db: Session, provider_name: str, raw_body: bytes, sig
     db.add(billing_event)
     if event.verified and payment:
         transition_payment(db, payment, event)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Concurrent duplicate webhook won the unique-key race; replay is a no-op.
+        db.rollback()
+        return db.query(BillingEvent).filter(BillingEvent.idempotency_key == event.idempotency_key).one()
     db.refresh(billing_event)
     return billing_event
 

@@ -12,6 +12,7 @@ os.environ.setdefault("ADMIN_PASSWORD", "admin-password")
 import pytest
 from app.billing.service import sync_default_plans
 from app.core.database import Base, engine
+from app.core.mailer import ConsoleMailer, set_mailer
 from app.core.models import Plan, Subscription, User
 from app.core.rate_limit import reset_rate_limits
 from app.core.security import hash_password
@@ -24,11 +25,21 @@ from fastapi.testclient import TestClient
 def reset_db():
     reset_rate_limits()
     set_steam_client_adapter(None)
+    set_mailer(ConsoleMailer())
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
     set_steam_client_adapter(None)
+    set_mailer(None)
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture
+def outbox():
+    from app.core.mailer import get_mailer
+
+    mailer = get_mailer()
+    return getattr(mailer, "outbox", [])
 
 
 @pytest.fixture

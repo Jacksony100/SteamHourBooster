@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     log_json: bool = Field(default=False, alias="LOG_JSON")
     sentry_dsn: str = Field(default="", alias="SENTRY_DSN")
     sentry_traces_sample_rate: float = Field(default=0.0, alias="SENTRY_TRACES_SAMPLE_RATE")
+    email_provider: str = Field(default="console", alias="EMAIL_PROVIDER")
+    email_from: str = Field(default="DeckPilot <no-reply@deckpilot.local>", alias="EMAIL_FROM")
+    smtp_host: str = Field(default="", alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, alias="SMTP_PORT")
+    smtp_user: str = Field(default="", alias="SMTP_USER")
+    smtp_password: str = Field(default="", alias="SMTP_PASSWORD")
+    smtp_use_tls: bool = Field(default=True, alias="SMTP_USE_TLS")
 
     @field_validator("environment")
     @classmethod
@@ -56,6 +63,15 @@ class Settings(BaseSettings):
         if value not in allowed:
             raise ValueError(f"BILLING_PROVIDER must be one of {sorted(allowed)}")
         return value
+
+    @field_validator("email_provider")
+    @classmethod
+    def validate_email_provider(cls, value: str) -> str:
+        allowed = {"console", "smtp"}
+        normalized = value.lower()
+        if normalized not in allowed:
+            raise ValueError(f"EMAIL_PROVIDER must be one of {sorted(allowed)}")
+        return normalized
 
     @field_validator("steam_integration_mode")
     @classmethod
@@ -129,6 +145,8 @@ class Settings(BaseSettings):
                 raise ValueError("DATABASE_URL must not use SQLite in production")
             if not self.redis_url:
                 raise ValueError("REDIS_URL is required in production")
+            if self.email_provider == "smtp" and not self.smtp_host:
+                raise ValueError("SMTP_HOST is required when EMAIL_PROVIDER=smtp")
             origins = self.cors_origin_list
             if not origins or "*" in origins:
                 raise ValueError("Wildcard or empty CORS_ORIGINS is forbidden in production")
