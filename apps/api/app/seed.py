@@ -29,6 +29,24 @@ def seed(db: Session) -> None:
                 manual_override=True,
             )
         )
+
+    # Optional demo user for closed-beta demos / the web smoke harness.
+    if settings.seed_demo_user:
+        pro = db.query(Plan).filter(Plan.code == "pro").one()
+        demo = db.query(User).filter(User.username == settings.demo_username).one_or_none()
+        if not demo:
+            demo = User(username=settings.demo_username, password_hash=hash_password(settings.demo_password))
+            db.add(demo)
+            db.flush()
+            db.add(
+                Subscription(
+                    user_id=demo.id,
+                    plan_id=pro.id,
+                    plan_code=pro.code,
+                    status="active",
+                    manual_override=True,
+                )
+            )
     db.commit()
 
 

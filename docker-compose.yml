@@ -31,6 +31,16 @@ x-api-env: &api-env
   LOG_JSON: ${LOG_JSON:-false}
   SENTRY_DSN: ${SENTRY_DSN:-}
   SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.0}
+  EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
+  EMAIL_FROM: ${EMAIL_FROM:-DeckPilot <no-reply@deckpilot.local>}
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+  SEED_DEMO_USER: ${SEED_DEMO_USER:-false}
+  DEMO_USERNAME: ${DEMO_USERNAME:-demo}
+  DEMO_PASSWORD: ${DEMO_PASSWORD:-demo-password-123}
 
 services:
   postgres:

@@ -31,7 +31,19 @@ observability depth, and scaling are addressed.
 ## What is DISABLED / reserved
 - **Official Steam linking** (`STEAM_OFFICIAL_LINKING_ENABLED=false`) — interface exists, implementation reserved.
 - **RQ worker** — real infra (`apps/worker`, `app/tasks/sessions.py`) but **not engaged** in demo mode (activation is synchronous inline). The previously-unreachable enqueue path + misleading "queued" event were removed. Worker is reserved for a future official mode.
-- **Email delivery** — recovery/verification tokens are created but **not sent** (no provider). Treat recovery as non-functional until a `Mailer` is wired.
+
+## What is now FUNCTIONAL (added in beta.2)
+- **Email/recovery** — `Mailer` abstraction (console default + SMTP). Password reset
+  & verification actually send; set `EMAIL_PROVIDER=smtp` + `SMTP_*` for real delivery.
+- **Subscription cancel/reactivate** — cancel at period end (or immediate for no-expiry plans).
+- **Session runtime state** — moved to a shared `RuntimeStore` (Redis in prod), so
+  heartbeat/stop work across multiple workers. Webhook idempotency race hardened.
+- **Steam official mode** — real (gated) Steam Web API calls for profile/owned-games/bans
+  when `STEAM_INTEGRATION_MODE=official` + `STEAM_API_KEY` are set; demo/test never call out.
+- **Observability** — `/metrics` (Prometheus) + structured logs + request IDs + Sentry hook.
+- **App pages** — `/accounts`, `/sessions`, `/games` (Steam-art showcase), `/logs`,
+  `/support`, `/onboarding` wired into the shell + i18n.
+- **CI coverage gate** — `--cov-fail-under=75` (current ~84%).
 
 ## What is PRODUCTION-READY (with config)
 - Production config validation (`config.py`): HTTPS URLs, secure cookies, no SQLite, no mock billing, non-wildcard CORS, strong admin password, demo-mode gating.
@@ -49,14 +61,21 @@ observability depth, and scaling are addressed.
 Optional: `SENTRY_DSN`, `LOG_JSON`, `STEAM_API_KEY` (official mode), `COINBASE_*`.
 
 ## Remaining work (next increments)
-1. **Core feature decision (Phase 5):** implement an owner-consented official adapter (Redis-backed runtime state, real worker jobs, ban-gating) **or** keep demo and finalize "Demo mode" UI labels everywhere.
-2. **Email provider** (`Mailer` abstraction: mock + SMTP/Resend); make recovery real; tests.
-3. **Frontend design port:** adopt the `ui-kit` in dashboard/admin (kit is currently dead code), add `/onboarding`, `/sessions`, `/games`, `/logs`, `/support`, split admin routes; Radix modals (focus trap); finish i18n; wire command-palette search.
-4. **Steam data official mode:** live `GetPlayerSummaries`/`GetOwnedGames`; background refresh.
-5. **Scaling:** move session runtime ownership off the in-process singleton (Redis) before running >1 API worker.
-6. **Billing polish:** cancel/refund flow, invoices, Stripe provider, webhook IntegrityError race-handling.
-7. **Observability depth:** metrics/traces, frontend error reporting.
-8. **QA:** Playwright E2E (landing → register → onboarding → add account → refresh Steam → select games → start/stop demo session → billing → admin); coverage gate; backups + restore rehearsal.
+Done in beta.2: ✅ email provider · ✅ Steam official mode · ✅ Redis session state +
+webhook race · ✅ cancel/reactivate · ✅ metrics · ✅ coverage gate · ✅ app pages
+(/accounts /sessions /games /logs /support /onboarding) + Steam-art showcase.
+
+Still open:
+1. **Core feature decision (Phase 5):** real owner-consented official session adapter
+   (real worker jobs end-to-end, ban-gating) **or** keep demo + audit every UI "Demo" label.
+2. **Frontend polish:** adopt the `ui-kit` inside the *existing* dashboard/admin (still
+   inline), split admin into sub-routes, Radix focus-trap modal for Steam-Guard, wire
+   command-palette search, finish i18n strings inside dashboard/admin/billing bodies.
+3. **Billing:** Stripe (card) provider, invoices/receipts, refund execution + admin UI.
+4. **Steam official:** background refresh job; real game-icon hashes surfaced in UI.
+5. **Observability depth:** OTel traces; frontend client-error reporting to Sentry.
+6. **QA:** wire `smoke-qa.mjs`/Playwright into CI against an ephemeral stack; backup
+   sidecar + a recorded restore rehearsal (see BACKUPS.md).
 
 ## Manual QA checklist (owner)
 1. Open landing `/`.
