@@ -31,6 +31,9 @@ export default function HomePage() {
           <ThemeToggle />
           <LanguageToggle />
           <Button asChild variant="ghost">
+            <Link href="/faceit">FACEIT Finder</Link>
+          </Button>
+          <Button asChild variant="ghost">
             <Link href="/login">{t.auth.submitLogin}</Link>
           </Button>
         </div>

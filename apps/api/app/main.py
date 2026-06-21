@@ -14,6 +14,7 @@ from app.core.database import SessionLocal
 from app.core.middleware import RequestContextMiddleware, SecurityHeadersMiddleware
 from app.core.observability import configure_logging, get_logger, init_sentry
 from app.dashboard.routes import router as dashboard_router
+from app.faceit.routes import router as faceit_router
 from app.games.routes import router as games_router
 from app.sessions.manager import get_session_manager
 from app.sessions.routes import router as sessions_router
@@ -137,3 +138,4 @@ app.include_router(sessions_router, prefix=api_prefix)
 app.include_router(billing_router, prefix=api_prefix)
 app.include_router(admin_router, prefix=api_prefix)
 app.include_router(system_router, prefix=api_prefix)
+app.include_router(faceit_router, prefix=api_prefix)

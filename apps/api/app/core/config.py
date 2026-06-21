@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     coinbase_webhook_secret: str = Field(default="", alias="COINBASE_WEBHOOK_SECRET")
     coinbase_charge_url: str = Field(default="https://api.commerce.coinbase.com/charges", alias="COINBASE_CHARGE_URL")
     enable_lifetime_checkout: bool = Field(default=False, alias="ENABLE_LIFETIME_CHECKOUT")
+    faceit_api_key: str = Field(default="", alias="FACEIT_API_KEY")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     log_json: bool = Field(default=False, alias="LOG_JSON")
     sentry_dsn: str = Field(default="", alias="SENTRY_DSN")
