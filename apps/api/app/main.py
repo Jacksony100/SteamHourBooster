@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from redis import Redis
 from sqlalchemy import text
 
@@ -74,6 +74,13 @@ async def unhandled_exception_handler(_request: Request, exc: Exception):
     logger.exception("Unhandled error: %s", type(exc).__name__)
     detail = "Internal server error" if _is_prod else f"{type(exc).__name__}: {exc}"
     return JSONResponse(status_code=500, content={"detail": detail})
+
+
+@app.get("/metrics")
+def metrics():
+    from app.core.metrics import render_prometheus
+
+    return PlainTextResponse(render_prometheus(), media_type="text/plain; version=0.0.4")
 
 
 @app.get("/health")

@@ -18,6 +18,7 @@ from app.core.rate_limit import reset_rate_limits
 from app.core.security import hash_password
 from app.main import app
 from app.sessions.adapters import set_steam_client_adapter
+from app.sessions.runtime import MemoryRuntimeStore, set_runtime_store
 from fastapi.testclient import TestClient
 
 
@@ -25,11 +26,13 @@ from fastapi.testclient import TestClient
 def reset_db():
     reset_rate_limits()
     set_steam_client_adapter(None)
+    set_runtime_store(MemoryRuntimeStore())
     set_mailer(ConsoleMailer())
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     yield
     set_steam_client_adapter(None)
+    set_runtime_store(None)
     set_mailer(None)
     Base.metadata.drop_all(bind=engine)
 

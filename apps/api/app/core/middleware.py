@@ -6,6 +6,7 @@ import time
 from secrets import token_hex
 
 from app.core.config import Settings
+from app.core.metrics import record_request
 from app.core.observability import get_logger, request_id_ctx
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -73,6 +74,7 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
             return response
         finally:
             duration_ms = round((time.perf_counter() - started) * 1000, 2)
+            record_request(request.method, status_code, duration_ms)
             logger.info(
                 "%s %s -> %s (%sms)",
                 request.method,

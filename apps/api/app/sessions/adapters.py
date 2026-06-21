@@ -32,13 +32,22 @@ class MockSteamClientAdapter:
 
     It simulates transparent session lifecycle state only. It does not implement
     stealth, platform-risk evasion, Steam Guard circumvention, network-routing evasion, or hidden behavior.
+
+    Runtime "is this account started" membership lives in the shared RuntimeStore
+    (Redis in production), not on the adapter instance, so heartbeat/stop work
+    across multiple API workers / a separate worker process.
     """
 
     def __init__(self, *, fail_start: bool = False, fail_stop: bool = False, guard_required: bool = False) -> None:
         self.fail_start = fail_start
         self.fail_stop = fail_stop
         self.guard_required = guard_required
-        self.started_accounts: set[int] = set()
+
+    @property
+    def _store(self):
+        from app.sessions.runtime import get_runtime_store
+
+        return get_runtime_store()
 
     def login_account(self, username: str, password: str, steam_guard_code: str | None = None) -> SteamClientResult:
         if self.guard_required and not steam_guard_code:
@@ -46,28 +55,28 @@ class MockSteamClientAdapter:
         return SteamClientResult(ok=True, steamid64=f"test-{abs(hash(username)) % 10_000_000}")
 
     def logout_account(self, account: SteamAccount) -> SteamClientResult:
-        self.started_accounts.discard(account.id)
+        self._store.mark_stopped(account.id)
         return SteamClientResult(ok=True)
 
     def start_session(self, account: SteamAccount, game_ids: list[int]) -> SteamClientResult:
         if self.fail_start:
             return SteamClientResult(ok=False, error="Mock Steam client failed to start session")
-        self.started_accounts.add(account.id)
+        self._store.mark_started(account.id)
         return SteamClientResult(ok=True, steamid64=account.steamid64)
 
     def heartbeat(self, account: SteamAccount, game_ids: list[int]) -> SteamClientResult:
-        if account.id not in self.started_accounts:
+        if not self._store.is_started(account.id):
             return SteamClientResult(ok=False, error="Mock Steam client has no active session")
         return SteamClientResult(ok=True, steamid64=account.steamid64)
 
     def stop_session(self, account: SteamAccount, game_ids: list[int]) -> SteamClientResult:
         if self.fail_stop:
             return SteamClientResult(ok=False, error="Mock Steam client failed to stop session")
-        self.started_accounts.discard(account.id)
+        self._store.mark_stopped(account.id)
         return SteamClientResult(ok=True)
 
     def close_all(self) -> None:
-        self.started_accounts.clear()
+        self._store.clear()
 
 
 class DisabledSteamClientAdapter(MockSteamClientAdapter):
