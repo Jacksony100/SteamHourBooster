@@ -199,13 +199,15 @@ def _decode_keyless_lifetime(life: dict) -> dict:
         value = life.get(key)
         return None if value in (None, "") else value
 
+    # Coded keys (empirically): m1=matches, m2=wins, k5=avg K/D, k8=avg HS%,
+    # m7=avg kills (NOT headshots), s0=recent results, s1/s7=streaks.
     out: dict = {}
     if g("m1") is not None:
         out["Matches"] = g("m1")
     if g("k5") is not None:
         out["Average K/D Ratio"] = g("k5")
-    if g("m7") is not None:
-        out["Average Headshots %"] = g("m7")
+    if g("k8") is not None:
+        out["Average Headshots %"] = g("k8")
     if g("s1") is not None:
         out["Current Win Streak"] = g("s1")
     if g("s7") is not None:

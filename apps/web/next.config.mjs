@@ -13,6 +13,16 @@ const steamImageHosts = [
   "shared.cloudflare.steamstatic.com",
 ];
 
+// FACEIT avatar/asset CDNs (for the public FACEIT Finder page).
+const faceitImageHosts = [
+  "assets.faceit-cdn.net",
+  "distribution.faceit-cdn.net",
+  "cdn-frontend.faceit.com",
+  "avatars.faceit-cdn.net",
+];
+
+const imageHosts = [...steamImageHosts, ...faceitImageHosts];
+
 // Content Security Policy. Connect/img allow the API + Steam image CDNs.
 const csp = [
   "default-src 'self'",
@@ -20,7 +30,7 @@ const csp = [
   "frame-ancestors 'none'",
   "object-src 'none'",
   "form-action 'self'",
-  `img-src 'self' data: blob: ${steamImageHosts.map((h) => `https://${h}`).join(" ")}`,
+  `img-src 'self' data: blob: ${imageHosts.map((h) => `https://${h}`).join(" ")}`,
   "font-src 'self' https://api.fontshare.com https://cdn.fontshare.com data:",
   "style-src 'self' 'unsafe-inline' https://api.fontshare.com",
   // Next.js requires inline/eval for the dev runtime; tighten in prod.
@@ -41,7 +51,7 @@ const nextConfig = {
   output: process.env.NEXT_OUTPUT_MODE === "standalone" ? "standalone" : undefined,
   typedRoutes: true,
   images: {
-    remotePatterns: steamImageHosts.map((hostname) => ({ protocol: "https", hostname })),
+    remotePatterns: imageHosts.map((hostname) => ({ protocol: "https", hostname })),
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

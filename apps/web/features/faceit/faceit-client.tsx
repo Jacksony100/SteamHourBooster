@@ -29,6 +29,7 @@ type FaceitResult = {
   region: string | null;
   stats: FaceitStats;
   message: string | null;
+  source: string | null;
 };
 
 // Official FACEIT skill-level palette (1–10).
@@ -157,6 +158,14 @@ export function FaceitClient() {
             <Stat label="K/D" value={result.stats.kd_ratio} />
             <Stat label="Headshots" value={result.stats.headshots ? `${result.stats.headshots}%` : null} />
           </div>
+
+          {result.source === "faceit_web" && (
+            <p className="text-xs text-slate-500">
+              Level &amp; ELO are exact. Detailed stats (win rate / K/D / HS) are read keyless from FACEIT and are
+              approximate — and may be temporarily unavailable due to FACEIT&apos;s bot protection. For exact, always-on
+              stats, set a free FACEIT API key on the server.
+            </p>
+          )}
 
           {result.stats.recent_results.length > 0 && (
             <div className="premium-card rounded-xl p-4">

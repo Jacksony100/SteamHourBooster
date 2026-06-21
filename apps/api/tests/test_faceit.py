@@ -22,8 +22,8 @@ def test_find_bad_input_no_network(client):
 def test_find_player_keyless_mapping(monkeypatch):
     cs2 = {"cs2": {"skill_level": 10, "faceit_elo": 2450, "region": "EU"}}
     profile = {"nickname": "ProPlayer", "avatar": "https://cdn/a.jpg", "country": "ua", "games": cs2}
-    # Keyless stats use FACEIT's coded keys (m1=matches, m2=wins, k5=K/D, m7=HS%, s0=recent).
-    lifetime = {"m1": "1200", "m2": "696", "k5": "1.15", "m7": "49", "s0": ["1", "1", "0", "1", "1"], "s1": "2", "s7": "5"}
+    # Keyless stats use FACEIT's coded keys (m1=matches, m2=wins, k5=K/D, k8=HS%, s0=recent).
+    lifetime = {"m1": "1200", "m2": "696", "k5": "1.15", "k8": "49", "s0": ["1", "1", "0", "1", "1"], "s1": "2", "s7": "5"}
 
     def fake_get(url, params=None, headers=None):
         if "/users/v1/users/" in url:  # profile by guid
@@ -44,6 +44,7 @@ def test_find_player_keyless_mapping(monkeypatch):
     assert result["faceit_url"] == "https://www.faceit.com/en/players/ProPlayer"
     assert result["stats"]["matches"] == "1200"
     assert result["stats"]["kd_ratio"] == "1.15"
+    assert result["stats"]["headshots"] == "49"
     assert result["stats"]["win_rate"] == "58"  # round(696/1200*100)
     assert result["stats"]["recent_results"] == ["1", "1", "0", "1", "1"]
 
