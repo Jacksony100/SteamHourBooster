@@ -39,10 +39,14 @@ class AdminUserListResponse(BaseModel):
     page_size: int
 
 
+# Subscription statuses an admin is allowed to set (mirrors billing.service states).
+SubscriptionStatusValue = Literal["active", "trialing", "expired", "canceled", "inactive"]
+
+
 class AdminUserUpdate(BaseModel):
     banned: bool | None = None
     is_admin: bool | None = None
-    subscription_status: str | None = None
+    subscription_status: SubscriptionStatusValue | None = None
     plan_code: str | None = None
     confirm_self_admin_revoke: bool = False
     reason: str | None = None
@@ -50,8 +54,8 @@ class AdminUserUpdate(BaseModel):
 
 class AdminSubscriptionUpdate(BaseModel):
     plan_code: str | None = None
-    status: str | None = None
-    extend_days: int | None = None
+    status: SubscriptionStatusValue | None = None
+    extend_days: int | None = Field(default=None, ge=1, le=3650)
     expires_at: datetime | None = None
     reason: str | None = None
 

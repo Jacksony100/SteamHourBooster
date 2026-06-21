@@ -6,14 +6,26 @@ export const designTokens = {
     surfaceStrong: "rgba(255,255,255,0.10)",
     border: "rgba(255,255,255,0.12)",
     borderStrong: "rgba(255,255,255,0.20)",
-    text: "#F4F8FF",
-    muted: "#8EA0B8",
-    primary: "#38BDF8",
-    primaryStrong: "#0EA5E9",
-    success: "#46F2A6",
-    warning: "#FBBF24",
-    danger: "#FB3F7A",
-    violet: "#A78BFA"
+    text: "#EAF0FA",
+    muted: "#9DAAC2",
+    mutedDim: "#7C8BA5",
+    primary: "#2E8BFF",
+    primaryStrong: "#1E6FE0",
+    primarySoft: "#5BA6FF",
+    success: "#3DF5A0",
+    warning: "#F5B83D",
+    danger: "#FF5C7A",
+    violet: "#8B5CF6",
+    violetSoft: "#B79CFF"
+  },
+  gradient: {
+    cta: "linear-gradient(135deg, #2E8BFF, #1E6FE0)",
+    brand: "linear-gradient(120deg, #5BA6FF, #8B5CF6 55%, #3DF5A0)",
+    icon: "linear-gradient(135deg, #2E8BFF, #8B5CF6)"
+  },
+  font: {
+    display: "'Satoshi', 'General Sans', system-ui, sans-serif",
+    body: "'General Sans', system-ui, -apple-system, sans-serif"
   },
   radius: {
     sm: "8px",

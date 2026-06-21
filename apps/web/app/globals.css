@@ -11,31 +11,42 @@
   --shb-surface-strong: rgba(255, 255, 255, 0.1);
   --shb-border: rgba(255, 255, 255, 0.12);
   --shb-border-strong: rgba(255, 255, 255, 0.2);
-  --shb-text: #f4f8ff;
-  --shb-text-rgb: 244 248 255;
-  --shb-muted: #8ea0b8;
-  --shb-muted-rgb: 142 160 184;
-  --shb-primary: #38bdf8;
-  --shb-primary-rgb: 56 189 248;
-  --shb-primary-strong: #0ea5e9;
-  --shb-primary-strong-rgb: 14 165 233;
-  --shb-success: #46f2a6;
-  --shb-success-rgb: 70 242 166;
-  --shb-warning: #fbbf24;
-  --shb-warning-rgb: 251 191 36;
-  --shb-danger: #fb3f7a;
-  --shb-danger-rgb: 251 63 122;
-  --shb-violet: #a78bfa;
-  --shb-violet-rgb: 167 139 250;
+  --shb-text: #eaf0fa;
+  --shb-text-rgb: 234 240 250;
+  --shb-muted: #9daac2;
+  --shb-muted-rgb: 157 170 194;
+  --shb-muted-dim: #7c8ba5;
+  --shb-primary: #2e8bff;
+  --shb-primary-rgb: 46 139 255;
+  --shb-primary-strong: #1e6fe0;
+  --shb-primary-strong-rgb: 30 111 224;
+  --shb-primary-soft: #5ba6ff;
+  --shb-success: #3df5a0;
+  --shb-success-rgb: 61 245 160;
+  --shb-warning: #f5b83d;
+  --shb-warning-rgb: 245 184 61;
+  --shb-danger: #ff5c7a;
+  --shb-danger-rgb: 255 92 122;
+  --shb-violet: #8b5cf6;
+  --shb-violet-rgb: 139 92 246;
+  --shb-violet-soft: #b79cff;
+  /* Signature CTA + brand gradients lifted from the design prototype. */
+  --shb-cta-gradient: linear-gradient(135deg, #2e8bff, #1e6fe0);
+  --shb-brand-gradient: linear-gradient(120deg, #5ba6ff, #8b5cf6 55%, #3df5a0);
+  --shb-icon-gradient: linear-gradient(135deg, #2e8bff, #8b5cf6);
   --shb-shadow-glass: 0 28px 90px rgba(0, 0, 0, 0.34);
   --shb-shadow-card-3d: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 18px 55px rgba(0, 0, 0, 0.28);
-  --shb-glow-primary: 0 0 40px rgba(56, 189, 248, 0.26);
-  --shb-glow-success: 0 0 30px rgba(70, 242, 166, 0.22);
-  --shb-glow-danger: 0 0 30px rgba(251, 63, 122, 0.24);
+  --shb-glow-primary: 0 0 40px rgba(46, 139, 255, 0.28);
+  --shb-glow-success: 0 0 30px rgba(61, 245, 160, 0.22);
+  --shb-glow-danger: 0 0 30px rgba(255, 92, 122, 0.24);
+  /* Prototype background: triple radial glow (blue / violet / neon-green) + masked grid. */
   --shb-page-bg:
-    linear-gradient(135deg, rgba(5, 7, 13, 0.99), rgba(8, 11, 18, 0.98) 52%, rgba(6, 19, 33, 0.99)),
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+    radial-gradient(1100px 600px at 18% -8%, rgba(46, 139, 255, 0.16), transparent 60%),
+    radial-gradient(900px 600px at 92% 4%, rgba(139, 92, 246, 0.14), transparent 58%),
+    radial-gradient(800px 700px at 60% 108%, rgba(61, 245, 160, 0.07), transparent 60%),
+    linear-gradient(135deg, #05070d, #080b12 52%, #06111f),
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
 }
 
 html.light {
@@ -78,9 +89,16 @@ html.full-dark {
 body {
   min-height: 100vh;
   background: var(--shb-page-bg);
-  background-size: auto, 48px 48px, 48px 48px;
+  background-size: auto, auto, auto, auto, 64px 64px, 64px 64px;
+  background-attachment: fixed;
   color: var(--shb-text);
+  font-family: "General Sans", system-ui, -apple-system, sans-serif;
   text-rendering: geometricPrecision;
+}
+
+h1, h2, h3, .font-display {
+  font-family: "Satoshi", "General Sans", system-ui, sans-serif;
+  letter-spacing: -0.02em;
 }
 
 .glass {
@@ -111,9 +129,15 @@ body {
 }
 
 .text-gradient {
-  background: linear-gradient(135deg, #f8fbff, #8bdcff 48%, #46f2a6);
+  background: var(--shb-brand-gradient);
   -webkit-background-clip: text;
+  background-clip: text;
   color: transparent;
+}
+
+.cta-gradient {
+  background: var(--shb-cta-gradient);
+  box-shadow: 0 12px 36px -12px rgba(46, 139, 255, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .focus-ring {
@@ -122,7 +146,7 @@ body {
 }
 
 .focus-ring:focus-visible {
-  box-shadow: 0 0 0 1px var(--shb-bg), 0 0 0 4px rgba(56, 189, 248, 0.45);
+  box-shadow: 0 0 0 1px var(--shb-bg), 0 0 0 4px rgba(46, 139, 255, 0.45);
 }
 
 .status-dot {
@@ -162,7 +186,7 @@ body {
 }
 
 ::selection {
-  background: rgba(56, 189, 248, 0.32);
+  background: rgba(46, 139, 255, 0.32);
   color: var(--shb-text);
 }
 

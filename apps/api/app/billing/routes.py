@@ -90,7 +90,11 @@ def checkout(payload: CheckoutRequest, user: User = Depends(current_user), db: S
     )
 
 
-@router.post("/webhook/{provider_name}", response_model=WebhookResponse)
+@router.post(
+    "/webhook/{provider_name}",
+    response_model=WebhookResponse,
+    dependencies=[Depends(rate_limit("webhook", 120, 60))],
+)
 async def webhook(
     provider_name: str,
     request: Request,

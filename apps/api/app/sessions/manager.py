@@ -2,8 +2,6 @@ import json
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
-from redis import Redis
-from rq import Queue
 from sqlalchemy.orm import Session
 
 from app.audit.service import write_audit
@@ -18,11 +16,6 @@ TERMINAL_SESSION_STATUSES = {SessionStatus.stopped.value, SessionStatus.error.va
 
 def now_utc() -> datetime:
     return datetime.now(UTC)
-
-
-def _queue() -> Queue:
-    settings = get_settings()
-    return Queue("sessions", connection=Redis.from_url(settings.redis_url))
 
 
 def selected_game_ids(account: SteamAccount) -> list[int]:
@@ -168,21 +161,12 @@ class SessionManager:
         db.add(session)
         db.flush()
 
-        if settings.steam_integration_mode == "demo" or settings.steam_test_mode:
-            self._activate_session(db, session, account, game_ids, raise_on_error=True)
-        else:
-            job = _queue().enqueue("app.tasks.sessions.run_activity_session", session.id, job_timeout="2h")
-            session.worker_job_id = job.id
-            write_session_event(
-                db,
-                event_type="session_start_requested",
-                user_id=user.id,
-                account_id=account.id,
-                session_id=session.id,
-                message="Session start queued for transparent worker",
-                metadata={"selected_games": game_ids},
-            )
-            db.commit()
+        # Demo mode runs the transparent session lifecycle synchronously and persists
+        # all state to the DB (steam_sessions / session_events / account_status). The
+        # RQ worker (app/tasks/sessions.py) is reserved for a future official-linking
+        # mode and is intentionally NOT engaged here, so a session never sits in a
+        # phantom "queued" state with no worker to process it.
+        self._activate_session(db, session, account, game_ids, raise_on_error=True)
 
         db.refresh(session)
         write_audit(db, "session.start", "steam_session", session.id, user, {"account_id": account.id})

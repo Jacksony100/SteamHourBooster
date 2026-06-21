@@ -2,6 +2,43 @@
 
 All notable changes for DeckPilot will be documented here.
 
+## 2.0.0-beta.2 - 2026-06-21
+
+### Added
+
+- Steam public-data layer: profile/avatar + owned-games + game-artwork endpoints
+  (`steam_data` module) with DB caching, ownership checks, CSRF + rate-limited
+  refresh, and frontend `GameImage` / `SteamAvatar` components with fallbacks.
+- Observability: structured JSON logging, request-id/correlation middleware,
+  access logs, optional Sentry hook (`OBSERVABILITY.md`).
+- HTTP security headers on the API (CSP, HSTS in prod, X-Frame-Options,
+  X-Content-Type-Options, Referrer-Policy, Permissions-Policy) and on the web app
+  (`next.config.mjs`).
+- Design-system import from the prototype: exact token palette (electric blue /
+  violet / neon green), Satoshi + General Sans fonts, signature radial-glow
+  background, brand/CTA gradients (`DESIGN_IMPORT_NOTES.md`).
+- Migration `006_steam_data` (Steam cache tables + audit/plan_id index hardening).
+- Docs: `BETA_READINESS.md`, `STEAM_DATA_INTEGRATION.md`, `OBSERVABILITY.md`,
+  `DESIGN_IMPORT_NOTES.md`, `BASELINE_STATUS.md`, `REPO_HYGIENE.md`.
+
+### Changed
+
+- Docker images run as a **non-root** user via multi-stage builds (no build tools
+  in runtime); compose gains `restart: unless-stopped`.
+- Admin subscription status is whitelisted; webhook endpoint is rate-limited.
+- Rate-limit Redis path is self-healing (no permanent-lockout on a TTL-less key).
+- Unhandled errors and the readiness probe no longer leak internals in production.
+
+### Removed
+
+- Unreachable RQ enqueue branch + misleading "queued for worker" event in the
+  session manager; demo session activation is documented as synchronous inline.
+
+### Security
+
+- API + web security headers; non-root containers; webhook rate limiting;
+  whitelisted admin subscription statuses; normalized error responses.
+
 ## 2.0.0-beta.1 - 2026-06-16
 
 ### Added

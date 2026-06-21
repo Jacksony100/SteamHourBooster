@@ -4,6 +4,8 @@ export * from "./drawer";
 export * from "./empty-state";
 export * from "./error-state";
 export * from "./game-card";
+export * from "./game-image";
+export * from "./steam-avatar";
 export * from "./language-toggle";
 export * from "./loading-skeleton";
 export * from "./metric-card";

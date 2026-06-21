@@ -43,13 +43,19 @@ def _memory_check(key: str, limit: int, seconds: int, now: float) -> tuple[int, 
 
 def _redis_check(key: str, limit: int, seconds: int) -> tuple[int, int]:
     client = redis_client()
-    count = client.incr(key)
-    if count == 1:
-        client.expire(key, seconds)
+    count = int(client.incr(key))
+    # Set the TTL on every call with NX (only when missing). This is self-healing:
+    # if a prior request crashed between INCR and EXPIRE and left a TTL-less key,
+    # the next request restores the expiry, so an identity can never be locked out
+    # forever. NX prevents the window from sliding on subsequent hits.
+    client.expire(key, seconds, nx=True)
     ttl = client.ttl(key)
-    remaining = max(0, limit - int(count))
+    if ttl is None or ttl < 0:
+        client.expire(key, seconds)
+        ttl = seconds
+    remaining = max(0, limit - count)
     retry_after = int(ttl if ttl and ttl > 0 else seconds)
-    if int(count) > limit:
+    if count > limit:
         return 0, retry_after
     return remaining, 0
 

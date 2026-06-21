@@ -283,9 +283,61 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    actor_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    actor_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     action: Mapped[str] = mapped_column(String(120), index=True)
     target_type: Mapped[str] = mapped_column(String(80))
-    target_id: Mapped[str] = mapped_column(String(80))
+    target_id: Mapped[str] = mapped_column(String(80), index=True)
     metadata_json: Mapped[str] = mapped_column(Text, default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SteamProfileCache(Base):
+    """Cached public Steam profile/avatar data for an account (no credentials)."""
+
+    __tablename__ = "steam_profile_cache"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("steam_accounts.id", ondelete="CASCADE"), unique=True, index=True)
+    steamid64: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    persona_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    profile_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    avatar_small: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    avatar_medium: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    avatar_full: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    persona_state: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    visibility: Mapped[str] = mapped_column(String(32), default="unknown")
+    fetch_status: Mapped[str] = mapped_column(String(32), default="ok", index=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SteamGameAsset(Base):
+    """Cached, normalized Steam CDN artwork URLs for an app id."""
+
+    __tablename__ = "steam_game_assets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    app_id: Mapped[int] = mapped_column(Integer, unique=True, index=True)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    header_image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    capsule_image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    library_image_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    icon_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    store_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    source: Mapped[str] = mapped_column(String(40), default="steam_cdn")
+    last_fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SteamOwnedGameCache(Base):
+    """Cached owned-games list per account (public ownership/playtime data)."""
+
+    __tablename__ = "steam_owned_games_cache"
+    __table_args__ = (UniqueConstraint("account_id", "app_id", name="uq_owned_game_cache"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("steam_accounts.id", ondelete="CASCADE"), index=True)
+    app_id: Mapped[int] = mapped_column(Integer, index=True)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    playtime_forever: Mapped[int] = mapped_column(Integer, default=0)
+    img_icon_hash: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    last_fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
