@@ -1,5 +1,3 @@
-from types import SimpleNamespace
-
 import app.faceit.service as faceit_service
 from app.faceit.service import find_player, parse_steam_input
 
@@ -12,48 +10,61 @@ def test_parse_steam_input_variants():
     assert parse_steam_input("") == (None, None)
 
 
-def test_find_returns_not_configured_without_key(client):
-    resp = client.get("/api/v1/faceit/find", params={"steam": "76561198000000000"})
+def test_find_bad_input_no_network(client):
+    # '@@@' parses to nothing -> short-circuits before any HTTP call.
+    resp = client.get("/api/v1/faceit/find", params={"steam": "@@@"})
     assert resp.status_code == 200
     body = resp.json()
     assert body["found"] is False
-    assert body["configured"] is False
+    assert "Could not read" in body["message"]
 
 
-def test_find_player_maps_faceit_payload(monkeypatch):
-    monkeypatch.setattr(faceit_service, "get_settings", lambda: SimpleNamespace(faceit_api_key="k", steam_api_key="s"))
-
-    player = {
-        "player_id": "abc-123",
-        "nickname": "ProPlayer",
-        "avatar": "https://faceit-cdn/avatar.jpg",
-        "country": "ua",
-        "faceit_url": "https://faceit.com/{lang}/players/ProPlayer",
-        "games": {"cs2": {"skill_level": 10, "faceit_elo": 2450, "region": "EU"}},
-    }
+def test_find_player_keyless_mapping(monkeypatch):
+    cs2 = {"cs2": {"skill_level": 10, "faceit_elo": 2450, "region": "EU"}}
+    profile = {"nickname": "ProPlayer", "avatar": "https://cdn/a.jpg", "country": "ua", "games": cs2}
     lifetime = {"Matches": "1200", "Win Rate %": "58", "Average K/D Ratio": "1.15", "Average Headshots %": "49", "Recent Results": ["1", "1", "0", "1", "1"]}
-    stats = {"lifetime": lifetime}
 
-    def fake_get(path, params=None):
-        if path == "/players":
-            assert params["game"] == "cs2"
-            return player
-        return stats
+    def fake_get(url, params=None, headers=None):
+        if "/users/v1/users/" in url:  # profile by guid
+            return {"payload": profile}
+        if url.endswith("/users/v1/users"):  # steamid -> guid
+            return {"payload": {"id": "guid-1"}}
+        if "/stats/v1/stats/users/" in url:
+            return {"lifetime": lifetime}
+        return None
 
-    monkeypatch.setattr(faceit_service, "_faceit_get", fake_get)
+    monkeypatch.setattr(faceit_service, "_get_json", fake_get)
     result = find_player("https://steamcommunity.com/profiles/76561198000000000")
     assert result["found"] is True
+    assert result["source"] == "faceit_web"
     assert result["nickname"] == "ProPlayer"
     assert result["skill_level"] == 10
     assert result["faceit_elo"] == 2450
-    assert result["faceit_url"] == "https://faceit.com/en/players/ProPlayer"
+    assert result["faceit_url"] == "https://www.faceit.com/en/players/ProPlayer"
     assert result["stats"]["matches"] == "1200"
     assert result["stats"]["kd_ratio"] == "1.15"
+    assert result["stats"]["recent_results"] == ["1", "1", "0", "1", "1"]
 
 
 def test_find_player_not_found(monkeypatch):
-    monkeypatch.setattr(faceit_service, "get_settings", lambda: SimpleNamespace(faceit_api_key="k", steam_api_key="s"))
-    monkeypatch.setattr(faceit_service, "_faceit_get", lambda path, params=None: None)
+    monkeypatch.setattr(faceit_service, "_get_json", lambda url, params=None, headers=None: None)
     result = find_player("76561198000000000")
     assert result["found"] is False
     assert "No FACEIT profile" in result["message"]
+
+
+def test_find_player_route_keyless(client, monkeypatch):
+    def fake_get(url, params=None, headers=None):
+        if "/users/v1/users/" in url:
+            return {"payload": {"nickname": "x", "games": {"cs2": {"skill_level": 7, "faceit_elo": 1500}}}}
+        if url.endswith("/users/v1/users"):
+            return {"payload": {"id": "g"}}
+        return None
+
+    monkeypatch.setattr(faceit_service, "_get_json", fake_get)
+    resp = client.get("/api/v1/faceit/find", params={"steam": "76561198000000000"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["found"] is True
+    assert body["skill_level"] == 7
+    assert body["source"] == "faceit_web"

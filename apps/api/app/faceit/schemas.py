@@ -25,3 +25,4 @@ class FaceitFinderResponse(BaseModel):
     region: str | None = None
     stats: FaceitStats = FaceitStats()
     message: str | None = None
+    source: str | None = None
