@@ -14,9 +14,14 @@ export const messages = {
   en: {
     nav: {
       dashboard: "Dashboard",
+      accounts: "Accounts",
+      sessions: "Sessions",
+      games: "Games",
+      billing: "Billing",
+      logs: "Logs",
+      support: "Support",
       admin: "Admin",
-      settings: "Settings",
-      billing: "Billing"
+      settings: "Settings"
     },
     shell: {
       command: "Command",
@@ -77,9 +82,14 @@ export const messages = {
   ru: {
     nav: {
       dashboard: "Дашборд",
+      accounts: "Аккаунты",
+      sessions: "Сессии",
+      games: "Игры",
+      billing: "Оплата",
+      logs: "Журнал",
+      support: "Поддержка",
       admin: "Админ-панель",
-      settings: "Настройки",
-      billing: "Оплата"
+      settings: "Настройки"
     },
     shell: {
       command: "Команды",
@@ -140,9 +150,14 @@ export const messages = {
   de: {
     nav: {
       dashboard: "Dashboard",
+      accounts: "Konten",
+      sessions: "Sitzungen",
+      games: "Spiele",
+      billing: "Abrechnung",
+      logs: "Protokoll",
+      support: "Support",
       admin: "Admin",
-      settings: "Einstellungen",
-      billing: "Abrechnung"
+      settings: "Einstellungen"
     },
     shell: {
       command: "Befehle",
@@ -203,9 +218,14 @@ export const messages = {
   zh: {
     nav: {
       dashboard: "仪表盘",
+      accounts: "账号",
+      sessions: "会话",
+      games: "游戏",
+      billing: "订阅",
+      logs: "日志",
+      support: "支持",
       admin: "管理",
-      settings: "设置",
-      billing: "订阅"
+      settings: "设置"
     },
     shell: {
       command: "命令",

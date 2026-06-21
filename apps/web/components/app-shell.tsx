@@ -3,7 +3,20 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Command, LayoutDashboard, LogOut, Settings, Shield, WalletCards, type LucideIcon } from "lucide-react";
+import {
+  Command,
+  Gamepad2,
+  LayoutDashboard,
+  LifeBuoy,
+  LogOut,
+  PlaySquare,
+  ScrollText,
+  Settings,
+  Shield,
+  Users,
+  WalletCards,
+  type LucideIcon
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -25,8 +38,13 @@ export function AppShell({ children, currentUser }: { children: React.ReactNode;
 
   const allNav: Array<{ href: Route; label: string; icon: LucideIcon; adminOnly?: boolean }> = [
     { href: "/dashboard", label: t.nav.dashboard, icon: LayoutDashboard },
-    { href: "/admin", label: t.nav.admin, icon: Shield, adminOnly: true },
+    { href: "/accounts", label: t.nav.accounts, icon: Users },
+    { href: "/sessions", label: t.nav.sessions, icon: PlaySquare },
+    { href: "/games", label: t.nav.games, icon: Gamepad2 },
     { href: "/billing", label: t.nav.billing, icon: WalletCards },
+    { href: "/logs", label: t.nav.logs, icon: ScrollText },
+    { href: "/support", label: t.nav.support, icon: LifeBuoy },
+    { href: "/admin", label: t.nav.admin, icon: Shield, adminOnly: true },
     { href: "/settings", label: t.nav.settings, icon: Settings }
   ];
   const nav = allNav.filter((item) => !item.adminOnly || currentUser.is_admin);
