@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, ArrowRight, BarChart3, CreditCard, Gamepad2, KeyRound, Layers3, ShieldCheck, Sparkles } from "lucide-react";
+import { Activity, ArrowRight, BarChart3, CreditCard, Gamepad2, KeyRound, Layers3, ShieldCheck } from "lucide-react";
 
 import { useLanguage } from "@/components/language-provider";
 import { LegalFooter } from "@/components/legal-footer";
@@ -45,10 +45,6 @@ export default function HomePage() {
 
       <section className="mx-auto grid w-full max-w-7xl items-center gap-10 px-5 pb-14 pt-10 lg:grid-cols-[1.05fr_0.95fr] lg:pt-20">
         <div className="space-y-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 text-sm font-semibold text-sky-200">
-            <Sparkles className="h-4 w-4" />
-            {t.landing.eyebrow}
-          </div>
           <div className="space-y-5">
             <h1 className="text-gradient max-w-4xl text-5xl font-black leading-[0.98] tracking-tight md:text-7xl">{t.landing.headline}</h1>
             <p className="max-w-2xl text-lg leading-8 text-slate-300">{t.landing.body}</p>
