@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # Requires the account's own credentials + Steam Guard. No evasion/anti-detect.
     steam_real_sessions_enabled: bool = Field(default=False, alias="STEAM_REAL_SESSIONS_ENABLED")
     steam_session_max_minutes: int = Field(default=720, alias="STEAM_SESSION_MAX_MINUTES")
+    # After the first real login captures a refresh token, drop the stored password
+    # so accounts are re-authenticated via the (revocable) token, not the password.
+    steam_drop_password_after_link: bool = Field(default=True, alias="STEAM_DROP_PASSWORD_AFTER_LINK")
     allow_demo_mode_in_production: bool = Field(default=False, alias="ALLOW_DEMO_MODE_IN_PRODUCTION")
     admin_username: str = Field(default="admin", alias="ADMIN_USERNAME")
     admin_password: str = Field(default="admin-change-me", alias="ADMIN_PASSWORD")

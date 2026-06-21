@@ -7,14 +7,14 @@ from sqlalchemy.orm import Session
 from app.audit.service import write_audit
 from app.billing.service import assert_account_limit
 from app.core.config import get_settings
-from app.core.models import AccountStatus, BanCache, SteamAccount, User
+from app.core.models import DEMO_NO_PASSWORD_MARKER, AccountStatus, BanCache, SteamAccount, User
 from app.core.security import encryption_service
 from app.integrations.steam import steam_integration
 from app.sessions.adapters import get_steam_client_adapter
 from app.sessions.manager import record_account_event, update_account_status
 from app.steam_accounts.schemas import BanInfoResponse, SteamAccountCreate
 
-DEMO_PASSWORD_MARKER = "[deckpilot-demo-no-password-collected]"
+DEMO_PASSWORD_MARKER = DEMO_NO_PASSWORD_MARKER
 
 
 def _display_identifier(payload: SteamAccountCreate) -> str:

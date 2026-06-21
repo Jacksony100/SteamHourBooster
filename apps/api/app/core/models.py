@@ -6,6 +6,9 @@ from app.core.database import Base
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+# Stored in password_encrypted when no real password is collected (demo / post-link).
+DEMO_NO_PASSWORD_MARKER = "[deckpilot-demo-no-password-collected]"
+
 
 class AccountStatus(str, Enum):
     offline = "offline"
@@ -84,6 +87,9 @@ class SteamAccount(Base):
     label: Mapped[str] = mapped_column(String(120))
     username_encrypted: Mapped[str] = mapped_column(Text)
     password_encrypted: Mapped[str] = mapped_column(Text)
+    # Encrypted Steam refresh token / login_key captured after first real login, so
+    # subsequent sessions reuse it instead of the stored password.
+    steam_refresh_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     steamid64: Mapped[str | None] = mapped_column(String(32), nullable=True)
     status: Mapped[str] = mapped_column(String(32), default=AccountStatus.offline.value)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

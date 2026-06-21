@@ -45,7 +45,7 @@ def run_real_activity_session(session_id: int, steam_guard_code: str | None = No
     """
 
     from app.core.config import get_settings
-    from app.core.models import SteamSession, User
+    from app.core.models import DEMO_NO_PASSWORD_MARKER, SteamSession, User
     from app.core.security import encryption_service
     from app.sessions.manager import now_utc, parse_selected_games, update_account_status, write_session_event
     from app.sessions.runtime import get_runtime_store
@@ -67,7 +67,7 @@ def run_real_activity_session(session_id: int, steam_guard_code: str | None = No
         db.commit()
 
     client = None
-    session_id_for_stop = session_id
+    account_id_locked: int | None = None
     try:
         session = db.get(SteamSession, session_id)
         if not session or session.status != SessionStatus.starting.value:
@@ -76,12 +76,20 @@ def run_real_activity_session(session_id: int, steam_guard_code: str | None = No
         user = db.get(User, session.user_id)
         game_ids = parse_selected_games(session)
 
+        # Per-account concurrency guard: one live idle per account across all workers.
+        if not runtime.acquire(account.id):
+            fail(session, "This account already has a live session on another worker")
+            return
+        account_id_locked = account.id
+
         try:
             username = encryption_service.decrypt(account.username_encrypted)
-            password = encryption_service.decrypt(account.password_encrypted)
+            stored_password = encryption_service.decrypt(account.password_encrypted)
+            refresh_token = encryption_service.decrypt(account.steam_refresh_token_encrypted) if account.steam_refresh_token_encrypted else None
         except Exception:
             fail(session, "Could not decrypt stored credentials")
             return
+        password = None if (not stored_password or stored_password == DEMO_NO_PASSWORD_MARKER) else stored_password
 
         try:
             from steam.client import SteamClient
@@ -91,16 +99,47 @@ def run_real_activity_session(session_id: int, steam_guard_code: str | None = No
             return
 
         client = SteamClient()
-        # The owner-supplied Steam Guard code is passed to both fields so either a
-        # mobile-authenticator or an email Guard account can complete login. The
-        # code is single-use and never stored.
-        result = client.login(username=username, password=password, two_factor_code=steam_guard_code, auth_code=steam_guard_code)
+
+        # Prefer the saved refresh token / login_key (revocable, no Guard prompt);
+        # fall back to password + the owner-supplied single-use Steam Guard code.
+        result = None
+        if refresh_token:
+            try:
+                result = client.login(username=username, login_key=refresh_token)
+            except Exception:
+                result = None
         if result != EResult.OK:
-            if result in (EResult.AccountLogonDenied, EResult.AccountLoginDeniedNeedTwoFactor, EResult.TwoFactorCodeMismatch, EResult.InvalidLoginAuthCode):
+            if not password:
+                fail(session, "No stored credentials to log in — re-link the account with its password")
+                return
+            result = client.login(username=username, password=password, two_factor_code=steam_guard_code, auth_code=steam_guard_code)
+
+        if result != EResult.OK:
+            guard_results = {
+                getattr(EResult, "AccountLogonDenied", None),
+                getattr(EResult, "AccountLoginDeniedNeedTwoFactor", None),
+                getattr(EResult, "TwoFactorCodeMismatch", None),
+                getattr(EResult, "InvalidLoginAuthCode", None),
+            }
+            if result in guard_results:
                 fail(session, "Steam Guard code is required or invalid — restart the session with a fresh code")
             else:
-                fail(session, f"Steam login failed ({result.name})")
+                fail(session, f"Steam login failed ({getattr(result, 'name', result)})")
             return
+
+        # Capture a fresh login_key / refresh token so future sessions skip the password.
+        try:
+            new_key = getattr(client, "login_key", None)
+            if not new_key:
+                captured = client.wait_event(SteamClient.EVENT_NEW_LOGIN_KEY, timeout=10)
+                new_key = getattr(client, "login_key", None) or (captured[0] if captured else None)
+            if new_key:
+                account.steam_refresh_token_encrypted = encryption_service.encrypt(str(new_key))
+                if settings.steam_drop_password_after_link:
+                    account.password_encrypted = encryption_service.encrypt(DEMO_NO_PASSWORD_MARKER)
+                event(session, session.user_id, "session_token_saved", "Saved a Steam refresh token; password no longer required for this account")
+        except Exception:
+            pass  # token capture is best-effort; password fallback remains
 
         # Logged in — mark running and start idling.
         session.steamid64 = str(client.steam_id.as_64)
@@ -118,8 +157,30 @@ def run_real_activity_session(session_id: int, steam_guard_code: str | None = No
         client.games_played(game_ids)
 
         deadline = time.monotonic() + settings.steam_session_max_minutes * 60
+        reconnect_failures = 0
         while True:
             client.sleep(30)  # gevent-friendly; keeps the CM connection alive
+
+            # Reconnect with bounded exponential backoff if the connection dropped.
+            if not getattr(client, "connected", True):
+                backoff = min(60, 5 * (2**reconnect_failures))
+                reconnected = False
+                try:
+                    reconnected = bool(client.reconnect(maxdelay=backoff, retry=1))
+                    if reconnected and getattr(client, "relogin_available", False):
+                        client.relogin()
+                except Exception:
+                    reconnected = False
+                if not reconnected:
+                    reconnect_failures += 1
+                    if reconnect_failures >= 5:
+                        fail(db.get(SteamSession, session_id) or session, "Lost connection to Steam and could not reconnect")
+                        break
+                    continue
+                reconnect_failures = 0
+                client.games_played(game_ids)
+                event(db.get(SteamSession, session_id) or session, session.user_id, "session_reconnected", "Reconnected to Steam and resumed idling")
+
             db.expire(session)
             current = db.get(SteamSession, session_id)
             if not current or current.status in {SessionStatus.stopping.value, SessionStatus.stopped.value, SessionStatus.error.value}:
@@ -162,5 +223,7 @@ def run_real_activity_session(session_id: int, steam_guard_code: str | None = No
                 client.logout()
             except Exception:
                 pass
-        runtime.clear_stop(session_id_for_stop)
+        runtime.clear_stop(session_id)
+        if account_id_locked is not None:
+            runtime.release(account_id_locked)
         db.close()

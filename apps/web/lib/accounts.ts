@@ -46,8 +46,10 @@ export function listSessions() {
   return api<ActivitySession[]>("/sessions");
 }
 
-export function startSession(accountId: number) {
-  return api<ActivitySession>("/sessions", { method: "POST", csrf: true, body: JSON.stringify({ account_id: accountId }) });
+export function startSession(accountId: number, steamGuardCode?: string) {
+  const body: Record<string, unknown> = { account_id: accountId };
+  if (steamGuardCode) body.steam_guard_code = steamGuardCode;
+  return api<ActivitySession>("/sessions", { method: "POST", csrf: true, body: JSON.stringify(body) });
 }
 
 export function stopSession(sessionId: number) {

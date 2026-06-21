@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { GuardCodeModal } from "@/components/ui-kit/guard-code-modal";
 import { api } from "@/lib/api";
 
 type Overview = {
@@ -90,6 +91,9 @@ export function DashboardClient() {
   const [guardAccount, setGuardAccount] = useState<Account | null>(null);
   const [guardCode, setGuardCode] = useState("");
   const [guardSubmitting, setGuardSubmitting] = useState(false);
+  const [realSteam, setRealSteam] = useState(false);
+  const [startGuardAccount, setStartGuardAccount] = useState<Account | null>(null);
+  const [startGuardSubmitting, setStartGuardSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -128,6 +132,12 @@ export function DashboardClient() {
     refresh();
     const timer = window.setInterval(() => refresh(true), 5000);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    api<{ real_steam_enabled: boolean }>("/api/v1/system/mode")
+      .then((m) => setRealSteam(Boolean(m.real_steam_enabled)))
+      .catch(() => undefined);
   }, []);
 
   async function addAccount(event: React.FormEvent) {
@@ -203,13 +213,29 @@ export function DashboardClient() {
     await refresh();
   }
 
-  async function startSession(account: Account) {
+  // Real (official) sessions need a Steam Guard code; demo sessions start directly.
+  function requestStart(account: Account) {
+    if (realSteam) {
+      setStartGuardSubmitting(false);
+      setStartGuardAccount(account);
+    } else {
+      void startSession(account);
+    }
+  }
+
+  async function startSession(account: Account, steamGuardCode?: string) {
+    if (steamGuardCode) setStartGuardSubmitting(true);
     try {
-      await api<Session>("/api/v1/sessions", { method: "POST", csrf: true, body: JSON.stringify({ account_id: account.id }) });
-      toast.success("Session requested");
+      const body: Record<string, unknown> = { account_id: account.id };
+      if (steamGuardCode) body.steam_guard_code = steamGuardCode;
+      await api<Session>("/api/v1/sessions", { method: "POST", csrf: true, body: JSON.stringify(body) });
+      toast.success(steamGuardCode ? "Real session requested" : "Session requested");
+      setStartGuardAccount(null);
       await refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Session start failed");
+    } finally {
+      setStartGuardSubmitting(false);
     }
   }
 
@@ -336,7 +362,7 @@ export function DashboardClient() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button variant="ghost" onClick={() => loginAccount(account)}>Login</Button>
                   <Button variant="ghost" onClick={() => openGames(account)}>Games</Button>
-                  <Button variant="success" onClick={() => startSession(account)}>
+                  <Button variant="success" onClick={() => requestStart(account)}>
                     <Activity className="h-4 w-4" />
                     Start
                   </Button>
@@ -475,6 +501,16 @@ export function DashboardClient() {
           </form>
         </div>
       )}
+
+      <GuardCodeModal
+        open={Boolean(startGuardAccount)}
+        onOpenChange={(next) => {
+          if (!next) setStartGuardAccount(null);
+        }}
+        accountLabel={startGuardAccount?.label ?? ""}
+        submitting={startGuardSubmitting}
+        onSubmit={(code) => startGuardAccount && startSession(startGuardAccount, code)}
+      />
     </div>
   );
 }

@@ -22,8 +22,12 @@ class SystemModeResponse(BaseModel):
 def mode() -> SystemModeResponse:
     settings = get_settings()
     official_steam_configured = settings.steam_integration_mode == "official" and settings.steam_official_linking_enabled and bool(settings.steam_api_key)
-    real_steam_enabled = False
-    demo_mode = settings.steam_integration_mode == "demo" or settings.steam_test_mode or not real_steam_enabled
+    real_steam_enabled = (
+        settings.steam_integration_mode == "official"
+        and settings.steam_official_linking_enabled
+        and settings.steam_real_sessions_enabled
+    )
+    demo_mode = (settings.steam_integration_mode == "demo" or settings.steam_test_mode) and not real_steam_enabled
     checkout_disabled_reason = None
     if settings.environment == "production" and demo_mode:
         checkout_disabled_reason = "Paid checkout is disabled for public demo mode."

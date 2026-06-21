@@ -45,15 +45,29 @@ start a session with a fresh **Steam Guard code**.
 - `POST /api/v1/sessions/{id}/stop` — signals the worker to log out and stop.
 
 ## Status / what is verified
-- ✅ Gating, enqueue/stop wiring, credential storage, schema, and the runtime
-  stop-flag are implemented and unit-tested (offline).
+- ✅ Gating, enqueue/stop wiring, credential storage, schema, runtime stop-flag,
+  the **per-account concurrency lock**, the **refresh-token capture/login + password
+  drop**, **reconnect/backoff**, and the **frontend Guard-code modal** are implemented
+  and the offline wiring is unit-tested.
 - ⚠️ **The live Steam login + idle loop is NOT tested here** (no real account is used).
-  Validate the login/2FA/idle behavior against your own account before relying on it.
-  The 2FA field handling (mobile vs email Guard) and reconnection may need tuning for
-  your accounts.
+  Validate login/2FA/idle/reconnect against your own account before relying on it.
+  The 2FA field handling (mobile vs email Guard), `login_key`/refresh-token capture,
+  and reconnection semantics are version-dependent in ValvePython and may need tuning.
 
-## TODO (hardening)
-- Replace stored passwords with Steam refresh tokens (`login_key`) after first login.
-- Reconnect/backoff handling for dropped CM connections.
-- Per-account concurrency safety if the same account is started from two sessions.
-- Frontend: collect the Steam Guard code in the start modal when real mode is on.
+## Hardening implemented
+- **Refresh token instead of password:** after the first successful login the worker
+  captures a `login_key`/refresh token, stores it Fernet-encrypted, and (when
+  `STEAM_DROP_PASSWORD_AFTER_LINK=true`, the default) drops the stored password.
+  Later sessions log in with the token — no password, no Guard prompt.
+- **Reconnect/backoff:** the idle loop detects a dropped CM connection and reconnects
+  with bounded exponential backoff (up to 5 attempts) before failing.
+- **Concurrency guard:** an atomic per-account lock (Redis `SADD`) prevents the same
+  account from idling on two workers at once.
+- **Frontend:** when `/system/mode` reports `real_steam_enabled`, the dashboard start
+  button opens an accessible (Radix focus-trapped) Steam Guard modal; the single-use
+  code is sent with the start request and never stored.
+
+## TODO (remaining)
+- Validate the ValvePython `login_key`/refresh-token + reconnect flow against real
+  accounts (the library's auth API changed in 2023; field names may need adjusting).
+- Surface "refresh-token saved / re-link required" state in the accounts UI.

@@ -30,6 +30,9 @@ class RuntimeStore(Protocol):
     def request_stop(self, session_id: int) -> None: ...
     def is_stop_requested(self, session_id: int) -> bool: ...
     def clear_stop(self, session_id: int) -> None: ...
+    # Atomic per-account lock so the same account can't idle from two workers at once.
+    def acquire(self, account_id: int) -> bool: ...
+    def release(self, account_id: int) -> None: ...
 
 
 class MemoryRuntimeStore:
@@ -59,6 +62,15 @@ class MemoryRuntimeStore:
     def clear_stop(self, session_id: int) -> None:
         self._stop.discard(session_id)
 
+    def acquire(self, account_id: int) -> bool:
+        if account_id in self._started:
+            return False
+        self._started.add(account_id)
+        return True
+
+    def release(self, account_id: int) -> None:
+        self._started.discard(account_id)
+
 
 class RedisRuntimeStore:
     def __init__(self) -> None:
@@ -86,6 +98,13 @@ class RedisRuntimeStore:
 
     def clear_stop(self, session_id: int) -> None:
         self._redis.srem(_STOP_KEY, session_id)
+
+    def acquire(self, account_id: int) -> bool:
+        # SADD returns the number of elements added (1 = acquired, 0 = already held).
+        return self._redis.sadd(_RUNTIME_KEY, account_id) == 1
+
+    def release(self, account_id: int) -> None:
+        self._redis.srem(_RUNTIME_KEY, account_id)
 
 
 _store: RuntimeStore | None = None

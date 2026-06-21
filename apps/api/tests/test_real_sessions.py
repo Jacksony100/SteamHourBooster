@@ -56,3 +56,22 @@ def test_runtime_stop_flag_roundtrip():
     assert store.is_stop_requested(99) is True
     store.clear_stop(99)
     assert store.is_stop_requested(99) is False
+
+
+def test_runtime_acquire_is_exclusive_per_account():
+    store = MemoryRuntimeStore()
+    assert store.acquire(5) is True
+    assert store.acquire(5) is False  # already held — second worker is blocked
+    store.release(5)
+    assert store.acquire(5) is True
+
+
+def test_system_mode_reports_real_steam_enabled(client, monkeypatch):
+    import app.system.routes as system_routes
+
+    monkeypatch.setattr(system_routes, "get_settings", lambda: _real_settings(steam_test_mode=False, billing_provider="mock"))
+    resp = client.get("/api/v1/system/mode")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["real_steam_enabled"] is True
+    assert body["demo_mode"] is False
