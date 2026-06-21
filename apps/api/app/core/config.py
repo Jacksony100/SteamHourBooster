@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     steam_test_mode: bool = Field(default=True, alias="STEAM_TEST_MODE")
     steam_integration_mode: str = Field(default="demo", alias="STEAM_INTEGRATION_MODE")
     steam_official_linking_enabled: bool = Field(default=False, alias="STEAM_OFFICIAL_LINKING_ENABLED")
+    # Explicit double opt-in for REAL owner-operated idle sessions (worker-driven).
+    # Requires the account's own credentials + Steam Guard. No evasion/anti-detect.
+    steam_real_sessions_enabled: bool = Field(default=False, alias="STEAM_REAL_SESSIONS_ENABLED")
+    steam_session_max_minutes: int = Field(default=720, alias="STEAM_SESSION_MAX_MINUTES")
     allow_demo_mode_in_production: bool = Field(default=False, alias="ALLOW_DEMO_MODE_IN_PRODUCTION")
     admin_username: str = Field(default="admin", alias="ADMIN_USERNAME")
     admin_password: str = Field(default="admin-change-me", alias="ADMIN_PASSWORD")

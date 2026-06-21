@@ -18,6 +18,18 @@ def now_utc() -> datetime:
     return datetime.now(UTC)
 
 
+def _real_sessions_enabled(settings) -> bool:
+    return settings.steam_integration_mode == "official" and settings.steam_official_linking_enabled and settings.steam_real_sessions_enabled
+
+
+def _queue():
+    # Imported lazily so the API never hard-depends on a live Redis at import time.
+    from redis import Redis
+    from rq import Queue
+
+    return Queue("sessions", connection=Redis.from_url(get_settings().redis_url))
+
+
 def selected_game_ids(account: SteamAccount) -> list[int]:
     return [link.game.app_id for link in account.selected_games]
 
@@ -122,14 +134,16 @@ class SessionManager:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
         return session
 
-    def start_session(self, db: Session, user: User, account_id: int) -> SteamSession:
+    def start_session(self, db: Session, user: User, account_id: int, steam_guard_code: str | None = None) -> SteamSession:
         settings = get_settings()
-        if settings.steam_integration_mode != "demo":
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Official Steam sessions are not configured yet")
+        real = _real_sessions_enabled(settings)
+        if settings.steam_integration_mode != "demo" and not real:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Official Steam sessions are not enabled in this build")
         account = db.query(SteamAccount).filter(SteamAccount.id == account_id, SteamAccount.user_id == user.id).one_or_none()
         if not account:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
-        if account.status != AccountStatus.online.value:
+        # Demo requires a prior (mock) login; the real worker performs its own login.
+        if not real and account.status != AccountStatus.online.value:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Account must be online")
 
         game_ids = selected_game_ids(account)
@@ -160,17 +174,38 @@ class SessionManager:
         )
         db.add(session)
         db.flush()
+        self.runtime.clear_stop(session.id)
 
-        # Demo mode runs the transparent session lifecycle synchronously and persists
-        # all state to the DB (steam_sessions / session_events / account_status). The
-        # RQ worker (app/tasks/sessions.py) is reserved for a future official-linking
-        # mode and is intentionally NOT engaged here, so a session never sits in a
-        # phantom "queued" state with no worker to process it.
-        self._activate_session(db, session, account, game_ids, raise_on_error=True)
+        if real:
+            # REAL owner-operated idle: the worker performs the actual Steam login
+            # (with the owner's Steam Guard code) and games_played loop. The login and
+            # session are transparent and fully logged; no evasion/anti-detect.
+            timeout = f"{settings.steam_session_max_minutes + 5}m"
+            job = _queue().enqueue("app.tasks.sessions.run_real_activity_session", session.id, steam_guard_code, job_timeout=timeout)
+            session.worker_job_id = job.id
+            write_session_event(
+                db,
+                event_type="session_start_requested",
+                user_id=user.id,
+                account_id=account.id,
+                session_id=session.id,
+                message="Real Steam session start queued for the transparent worker",
+                metadata={"selected_games": game_ids},
+            )
+            db.commit()
+        else:
+            # Demo mode activates the mock lifecycle synchronously.
+            self._activate_session(db, session, account, game_ids, raise_on_error=True)
 
         db.refresh(session)
-        write_audit(db, "session.start", "steam_session", session.id, user, {"account_id": account.id})
+        write_audit(db, "session.start", "steam_session", session.id, user, {"account_id": account.id, "real": real})
         return session
+
+    @property
+    def runtime(self):
+        from app.sessions.runtime import get_runtime_store
+
+        return get_runtime_store()
 
     def stop_session(self, db: Session, user: User, session_id: int) -> SteamSession:
         session = self.session_for_owner(db, user, session_id)
@@ -179,6 +214,22 @@ class SessionManager:
 
         account = session.account
         game_ids = parse_selected_games(session)
+
+        # Worker-driven (real) sessions: signal a cooperative stop; the worker
+        # performs the actual Steam logout and finalizes the record.
+        if _real_sessions_enabled(get_settings()) and session.worker_job_id:
+            self.runtime.request_stop(session.id)
+            session.status = SessionStatus.stopping.value
+            session.updated_at = now_utc()
+            write_session_event(
+                db, event_type="session_stop_requested", user_id=user.id, account_id=account.id,
+                session_id=session.id, message="Stop requested by owner",
+            )
+            db.commit()
+            db.refresh(session)
+            write_audit(db, "session.stop", "steam_session", session.id, user, {"account_id": account.id, "real": True})
+            return session
+
         if session.status == SessionStatus.stopping.value and not get_settings().steam_test_mode:
             return session
 

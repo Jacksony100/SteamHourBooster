@@ -4,8 +4,8 @@ from app.core.models import SessionEvent, SteamSession, User
 from app.sessions.manager import event_metadata, get_session_manager, parse_selected_games
 
 
-def start_session(db: Session, user: User, account_id: int) -> SteamSession:
-    return get_session_manager().start_session(db, user, account_id)
+def start_session(db: Session, user: User, account_id: int, steam_guard_code: str | None = None) -> SteamSession:
+    return get_session_manager().start_session(db, user, account_id, steam_guard_code)
 
 
 def stop_session(db: Session, user: User, session_id: int) -> SteamSession:

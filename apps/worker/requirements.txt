@@ -1,0 +1,5 @@
+# Worker-only dependency: the real Steam protocol client (ValvePython/steam).
+# Used solely for OWNER-OPERATED, transparent idle sessions on accounts the user
+# owns. No evasion, anti-detect, proxy rotation, or Steam Guard bypass. This is
+# intentionally NOT in the API image (which stays async / steam-free).
+steam[client]>=1.4.4

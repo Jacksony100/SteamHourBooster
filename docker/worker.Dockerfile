@@ -5,7 +5,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 COPY apps/api/requirements.txt /srv/api/requirements.txt
-RUN pip install --no-cache-dir -r /srv/api/requirements.txt
+COPY apps/worker/requirements.txt /srv/worker/requirements.txt
+RUN pip install --no-cache-dir -r /srv/api/requirements.txt -r /srv/worker/requirements.txt
 
 # --- runtime: slim, no build tools, non-root user ---
 FROM python:3.12-slim AS runtime

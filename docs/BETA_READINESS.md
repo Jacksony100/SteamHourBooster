@@ -24,7 +24,7 @@ observability depth, and scaling are addressed.
 - Tests: **68 API + 16 legacy** passing; 6-job CI (lint, tests, pip-audit, npm-audit, build, docker).
 
 ## What is MOCK / DEMO (labeled, not real)
-- **Steam session automation** — `integrations/steam.py` + `sessions/adapters.py` are mocks. No real login/activity. `STEAM_INTEGRATION_MODE=official` is hard-blocked (`503`).
+- **Steam session automation (default)** — `integrations/steam.py` + `sessions/adapters.py` are mocks in the default demo mode. A **real owner-operated idle path** now exists behind explicit triple opt-in (`STEAM_INTEGRATION_MODE=official` + `STEAM_OFFICIAL_LINKING_ENABLED=true` + `STEAM_REAL_SESSIONS_ENABLED=true`); it logs into the owner's account with their Steam Guard code and idles games so hours accrue. It is **gated off by default and NOT tested against live Steam** — see `REAL_SESSIONS.md` for scope, risks, and the no-evasion guardrails. Demo remains the default.
 - **Steam profile/owned-games data** in demo mode — deterministic demo values (clearly-labeled persona, default avatar). Real values require `official` mode + `STEAM_API_KEY`.
 - **Billing provider** — `mock` by default (blocked in production); Coinbase is wired but unexercised against the live API here.
 

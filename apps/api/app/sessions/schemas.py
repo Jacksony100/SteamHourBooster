@@ -5,6 +5,9 @@ from pydantic import BaseModel, Field
 
 class StartSessionRequest(BaseModel):
     account_id: int
+    # Required for REAL (official) sessions: the owner's Steam Guard code for this
+    # login. Ignored in demo mode. Single-use; never stored.
+    steam_guard_code: str | None = Field(default=None, max_length=16)
 
 
 class ActivitySessionResponse(BaseModel):

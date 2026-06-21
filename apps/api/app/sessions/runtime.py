@@ -18,6 +18,7 @@ from app.core.observability import get_logger
 logger = get_logger("app.sessions.runtime")
 
 _RUNTIME_KEY = "deckpilot:sessions:started"
+_STOP_KEY = "deckpilot:sessions:stop"
 
 
 class RuntimeStore(Protocol):
@@ -25,11 +26,16 @@ class RuntimeStore(Protocol):
     def mark_stopped(self, account_id: int) -> None: ...
     def is_started(self, account_id: int) -> bool: ...
     def clear(self) -> None: ...
+    # Cooperative stop signalling for worker-driven real sessions.
+    def request_stop(self, session_id: int) -> None: ...
+    def is_stop_requested(self, session_id: int) -> bool: ...
+    def clear_stop(self, session_id: int) -> None: ...
 
 
 class MemoryRuntimeStore:
     def __init__(self) -> None:
         self._started: set[int] = set()
+        self._stop: set[int] = set()
 
     def mark_started(self, account_id: int) -> None:
         self._started.add(account_id)
@@ -42,6 +48,16 @@ class MemoryRuntimeStore:
 
     def clear(self) -> None:
         self._started.clear()
+        self._stop.clear()
+
+    def request_stop(self, session_id: int) -> None:
+        self._stop.add(session_id)
+
+    def is_stop_requested(self, session_id: int) -> bool:
+        return session_id in self._stop
+
+    def clear_stop(self, session_id: int) -> None:
+        self._stop.discard(session_id)
 
 
 class RedisRuntimeStore:
@@ -61,6 +77,15 @@ class RedisRuntimeStore:
 
     def clear(self) -> None:
         self._redis.delete(_RUNTIME_KEY)
+
+    def request_stop(self, session_id: int) -> None:
+        self._redis.sadd(_STOP_KEY, session_id)
+
+    def is_stop_requested(self, session_id: int) -> bool:
+        return bool(self._redis.sismember(_STOP_KEY, session_id))
+
+    def clear_stop(self, session_id: int) -> None:
+        self._redis.srem(_STOP_KEY, session_id)
 
 
 _store: RuntimeStore | None = None

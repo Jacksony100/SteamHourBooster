@@ -20,7 +20,7 @@ def list_sessions(user: User = Depends(current_user), db: Session = Depends(get_
 
 @router.post("", response_model=ActivitySessionResponse, dependencies=[Depends(require_csrf), Depends(rate_limit("session_start", 20, 60))])
 def start(payload: StartSessionRequest, user: User = Depends(active_subscription), db: Session = Depends(get_db)):
-    return ActivitySessionResponse(**serialize_session(start_session(db, user, payload.account_id)))
+    return ActivitySessionResponse(**serialize_session(start_session(db, user, payload.account_id, payload.steam_guard_code)))
 
 
 @router.post("/{session_id}/stop", response_model=ActivitySessionResponse, dependencies=[Depends(require_csrf), Depends(rate_limit("session_stop", 30, 60))])

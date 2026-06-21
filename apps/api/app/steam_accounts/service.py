@@ -38,30 +38,44 @@ def list_accounts(db: Session, user: User) -> list[SteamAccount]:
     return db.query(SteamAccount).filter(SteamAccount.user_id == user.id).order_by(SteamAccount.id.desc()).all()
 
 
+def _real_sessions_enabled(settings) -> bool:
+    return settings.steam_integration_mode == "official" and settings.steam_official_linking_enabled and settings.steam_real_sessions_enabled
+
+
 def create_account(db: Session, user: User, payload: SteamAccountCreate) -> SteamAccount:
     if not payload.ownership_attested:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ownership attestation is required")
     settings = get_settings()
-    if payload.password and (settings.environment == "production" or settings.steam_integration_mode == "official"):
+    real = _real_sessions_enabled(settings)
+    # Passwords are rejected in production / official mode, UNLESS real owner-operated
+    # sessions are explicitly enabled (which require full credentials to log in).
+    if payload.password and (settings.environment == "production" or settings.steam_integration_mode == "official") and not real:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password-based Steam linking is disabled in this environment")
     if settings.steam_integration_mode == "official" and not settings.steam_official_linking_enabled:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Official Steam linking is not configured yet")
 
     assert_account_limit(db, user)
-    identifier = _display_identifier(payload)
-    password_marker = payload.password if payload.password and settings.steam_integration_mode == "demo" else DEMO_PASSWORD_MARKER
+    if real:
+        # Real login needs the actual Steam account name + password (encrypted at rest).
+        if not payload.username or not payload.password:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Real Steam sessions require the account login and password")
+        identifier = payload.username
+        stored_password = payload.password
+    else:
+        identifier = _display_identifier(payload)
+        stored_password = payload.password if payload.password and settings.steam_integration_mode == "demo" else DEMO_PASSWORD_MARKER
     account = SteamAccount(
         user_id=user.id,
         label=payload.label,
         username_encrypted=encryption_service.encrypt(identifier),
-        password_encrypted=encryption_service.encrypt(password_marker),
+        password_encrypted=encryption_service.encrypt(stored_password),
         steamid64=_steamid_from_payload(payload),
         status=AccountStatus.offline.value,
     )
     db.add(account)
     db.commit()
     db.refresh(account)
-    write_audit(db, "steam_account.create", "steam_account", account.id, user, {"steam_integration_mode": settings.steam_integration_mode})
+    write_audit(db, "steam_account.create", "steam_account", account.id, user, {"steam_integration_mode": settings.steam_integration_mode, "real": real})
     return account
 
 
