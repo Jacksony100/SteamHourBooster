@@ -181,13 +181,11 @@ export function FaceitClient() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="Matches" value={result.stats.matches} />
             <Stat label="Win rate" value={result.stats.win_rate ? `${result.stats.win_rate}%` : null} />
             <Stat label="K/D" value={result.stats.kd_ratio} />
             <Stat label="Headshots" value={result.stats.headshots ? `${result.stats.headshots}%` : null} />
-            <Stat label="Avg kills" value={result.stats.avg_kills} />
-            <Stat label="MVPs" value={result.stats.mvps} />
           </div>
 
           {result.stats.recent_results.length > 0 && (
