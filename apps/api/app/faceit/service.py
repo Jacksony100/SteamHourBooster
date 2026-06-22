@@ -10,6 +10,7 @@ change — set FACEIT_API_KEY to use the official, more reliable Data API instea
 from __future__ import annotations
 
 import re
+from datetime import UTC, datetime
 
 import httpx
 
@@ -18,6 +19,7 @@ from app.core.observability import get_logger
 
 logger = get_logger("app.faceit")
 
+FACEIT_MATCH_LIMIT = 10  # how many recent matches to parse in detail (official API)
 FACEIT_OPEN_API = "https://open.faceit.com/data/v4"   # official, key required
 FACEIT_WEB_API = "https://api.faceit.com"             # public web endpoints, keyless
 STEAM_API = "https://api.steampowered.com"
@@ -114,7 +116,7 @@ def _payload(data) -> dict:
     return {}
 
 
-def _result(steamid64: str, profile: dict, lifetime) -> dict:
+def _result(steamid64: str, profile: dict, lifetime, *, maps=None, matches=None, detail_level: str = "basic") -> dict:
     if not isinstance(lifetime, dict):
         lifetime = {}
     cs2 = profile.get("cs2") or {}
@@ -143,12 +145,17 @@ def _result(steamid64: str, profile: dict, lifetime) -> dict:
             "win_rate": num("Win Rate %", "Win Rate"),
             "kd_ratio": num("Average K/D Ratio", "K/D Ratio"),
             "headshots": num("Average Headshots %", "Total Headshots %"),
+            "avg_kills": num("Average Kills"),
+            "mvps": num("Average MVPs", "Total MVPs"),
             "current_win_streak": num("Current Win Streak"),
             "longest_win_streak": num("Longest Win Streak"),
             "recent_results": [str(r) for r in recent][-5:],
         },
+        "maps": maps or [],
+        "matches": matches or [],
         "message": None,
         "source": profile.get("source"),
+        "detail_level": detail_level,
     }
 
 
@@ -223,16 +230,84 @@ def _decode_keyless_lifetime(life: dict) -> dict:
     return out
 
 
-def _find_via_official(steamid64: str) -> dict | None:
+def _official_get(path: str, params: dict | None = None) -> dict | None:
     settings = get_settings()
-    headers = {"Authorization": f"Bearer {settings.faceit_api_key}"}
-    player = _get_json(f"{FACEIT_OPEN_API}/players", params={"game": "cs2", "game_player_id": steamid64}, headers=headers)
+    return _get_json(f"{FACEIT_OPEN_API}{path}", params=params, headers={"Authorization": f"Bearer {settings.faceit_api_key}"})
+
+
+def _opt(value) -> str | None:
+    return str(value) if value not in (None, "") else None
+
+
+def _segments_to_maps(segments) -> list:
+    maps = []
+    for seg in segments or []:
+        if not isinstance(seg, dict) or seg.get("type") != "Map":
+            continue
+        st = seg.get("stats") or {}
+        maps.append(
+            {
+                "name": seg.get("label") or "?",
+                "matches": _opt(st.get("Matches")),
+                "win_rate": _opt(st.get("Win Rate %")),
+                "kd_ratio": _opt(st.get("Average K/D Ratio")),
+            }
+        )
+
+    def _count(m) -> int:
+        try:
+            return int(m["matches"])
+        except (TypeError, ValueError):
+            return 0
+
+    maps.sort(key=_count, reverse=True)
+    return maps[:8]
+
+
+def _iso_date(ts) -> str | None:
+    try:
+        return datetime.fromtimestamp(int(ts), tz=UTC).strftime("%Y-%m-%d")
+    except (TypeError, ValueError, OSError):
+        return None
+
+
+def _official_matches(player_id: str) -> list:
+    """Parse the last N matches in detail: per-match map, score, K/D, HS%, result."""
+    hist = _official_get(f"/players/{player_id}/history", {"game": "cs2", "limit": FACEIT_MATCH_LIMIT})
+    items = (hist or {}).get("items") or []
+    out: list[dict] = []
+    for item in items[:FACEIT_MATCH_LIMIT]:
+        mid = item.get("match_id")
+        match = {
+            "match_id": mid,
+            "date": _iso_date(item.get("started_at") or item.get("finished_at")),
+            "faceit_url": (item.get("faceit_url") or "").replace("{lang}", "en") or None,
+        }
+        stats = _official_get(f"/matches/{mid}/stats") if mid else None
+        rounds = (stats or {}).get("rounds") or []
+        if rounds and isinstance(rounds[0], dict):
+            rs = rounds[0].get("round_stats") or {}
+            match["map"] = rs.get("Map")
+            match["score"] = rs.get("Score")
+            for team in rounds[0].get("teams") or []:
+                for player in team.get("players") or []:
+                    if player.get("player_id") == player_id:
+                        ps = player.get("player_stats") or {}
+                        match["kills"] = _opt(ps.get("Kills"))
+                        match["deaths"] = _opt(ps.get("Deaths"))
+                        match["kd_ratio"] = _opt(ps.get("K/D Ratio"))
+                        match["headshots"] = _opt(ps.get("Headshots %"))
+                        match["result"] = "win" if str(ps.get("Result")) == "1" else "loss"
+        out.append(match)
+    return out
+
+
+def _find_via_official(steamid64: str) -> dict | None:
+    player = _official_get("/players", {"game": "cs2", "game_player_id": steamid64})
     if not player:
         return None
     cs2 = (player.get("games") or {}).get("cs2") or {}
     player_id = player.get("player_id")
-    stats_raw = _get_json(f"{FACEIT_OPEN_API}/players/{player_id}/stats/cs2", headers=headers) if player_id else None
-    lifetime = (stats_raw or {}).get("lifetime") or {}
     profile = {
         "player_id": player_id,
         "nickname": player.get("nickname"),
@@ -242,7 +317,11 @@ def _find_via_official(steamid64: str) -> dict | None:
         "cs2": {"skill_level": cs2.get("skill_level"), "faceit_elo": cs2.get("faceit_elo"), "region": cs2.get("region")},
         "source": "faceit_api",
     }
-    return _result(steamid64, profile, lifetime)
+    stats_raw = _official_get(f"/players/{player_id}/stats/cs2") if player_id else None
+    lifetime = (stats_raw or {}).get("lifetime") or {}
+    maps = _segments_to_maps((stats_raw or {}).get("segments"))
+    matches = _official_matches(player_id) if player_id else []
+    return _result(steamid64, profile, lifetime, maps=maps, matches=matches, detail_level="full")
 
 
 def find_player(steam_input: str) -> dict:

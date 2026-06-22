@@ -11,9 +11,31 @@ type FaceitStats = {
   win_rate: string | null;
   kd_ratio: string | null;
   headshots: string | null;
+  avg_kills: string | null;
+  mvps: string | null;
   current_win_streak: string | null;
   longest_win_streak: string | null;
   recent_results: string[];
+};
+
+type FaceitMap = {
+  name: string;
+  matches: string | null;
+  win_rate: string | null;
+  kd_ratio: string | null;
+};
+
+type FaceitMatch = {
+  match_id: string | null;
+  map: string | null;
+  result: string | null;
+  score: string | null;
+  kills: string | null;
+  deaths: string | null;
+  kd_ratio: string | null;
+  headshots: string | null;
+  date: string | null;
+  faceit_url: string | null;
 };
 
 type FaceitResult = {
@@ -28,9 +50,16 @@ type FaceitResult = {
   faceit_elo: number | null;
   region: string | null;
   stats: FaceitStats;
+  maps: FaceitMap[];
+  matches: FaceitMatch[];
   message: string | null;
   source: string | null;
+  detail_level: string;
 };
+
+function mapLabel(name: string) {
+  return name.replace(/^de_/, "").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 // Official FACEIT skill-level palette (1–10).
 const LEVEL_COLORS: Record<number, string> = {
@@ -152,20 +181,14 @@ export function FaceitClient() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <Stat label="Matches" value={result.stats.matches} />
             <Stat label="Win rate" value={result.stats.win_rate ? `${result.stats.win_rate}%` : null} />
             <Stat label="K/D" value={result.stats.kd_ratio} />
             <Stat label="Headshots" value={result.stats.headshots ? `${result.stats.headshots}%` : null} />
+            <Stat label="Avg kills" value={result.stats.avg_kills} />
+            <Stat label="MVPs" value={result.stats.mvps} />
           </div>
-
-          {result.source === "faceit_web" && (
-            <p className="text-xs text-slate-500">
-              Level &amp; ELO are exact. Detailed stats (win rate / K/D / HS) are read keyless from FACEIT and are
-              approximate — and may be temporarily unavailable due to FACEIT&apos;s bot protection. For exact, always-on
-              stats, set a free FACEIT API key on the server.
-            </p>
-          )}
 
           {result.stats.recent_results.length > 0 && (
             <div className="premium-card rounded-xl p-4">
@@ -182,6 +205,60 @@ export function FaceitClient() {
                 ))}
               </div>
             </div>
+          )}
+
+          {result.maps.length > 0 && (
+            <div className="premium-card rounded-xl p-4">
+              <div className="mb-3 text-xs uppercase tracking-wide text-slate-400">By map</div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {result.maps.map((m) => (
+                  <div key={m.name} className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2">
+                    <span className="font-medium text-white">{mapLabel(m.name)}</span>
+                    <span className="text-xs text-slate-400">
+                      {m.matches ?? "—"} matches · {m.win_rate ? `${m.win_rate}% WR` : "—"} · {m.kd_ratio ?? "—"} K/D
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {result.matches.length > 0 && (
+            <div className="premium-card rounded-xl p-4">
+              <div className="mb-3 text-xs uppercase tracking-wide text-slate-400">Last {result.matches.length} matches</div>
+              <div className="space-y-1.5">
+                {result.matches.map((m, i) => (
+                  <a
+                    key={m.match_id ?? i}
+                    href={m.faceit_url ?? undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2 text-sm transition hover:border-white/15"
+                  >
+                    <span
+                      className="grid h-6 w-6 shrink-0 place-items-center rounded text-xs font-bold"
+                      style={m.result === "win" ? { background: "rgba(61,245,160,.15)", color: "#3DF5A0" } : { background: "rgba(255,92,122,.15)", color: "#FF5C7A" }}
+                    >
+                      {m.result === "win" ? "W" : m.result === "loss" ? "L" : "?"}
+                    </span>
+                    <span className="w-24 shrink-0 truncate font-medium text-white">{m.map ? mapLabel(m.map) : "—"}</span>
+                    <span className="w-16 shrink-0 text-slate-400">{m.score ?? ""}</span>
+                    <span className="flex-1 text-right text-slate-300">
+                      {m.kills ?? "—"}/{m.deaths ?? "—"} <span className="text-slate-500">({m.kd_ratio ?? "—"} K/D)</span>
+                    </span>
+                    <span className="hidden w-20 shrink-0 text-right text-xs text-slate-500 sm:block">{m.date ?? ""}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {result.detail_level === "basic" && (
+            <p className="text-xs text-slate-500">
+              Level &amp; ELO are exact. Detailed stats, per-map breakdown and match history require a free FACEIT API key
+              on the server (keyless FACEIT stat endpoints are blocked by FACEIT&apos;s bot protection). Set
+              <code className="mx-1 rounded bg-white/10 px-1">FACEIT_API_KEY</code> and restart the API for full data.
+            </p>
           )}
         </div>
       )}

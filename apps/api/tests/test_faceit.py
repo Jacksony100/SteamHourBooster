@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import app.faceit.service as faceit_service
 from app.faceit.service import find_player, parse_steam_input
 
@@ -47,6 +49,61 @@ def test_find_player_keyless_mapping(monkeypatch):
     assert result["stats"]["headshots"] == "49"
     assert result["stats"]["win_rate"] == "58"  # round(696/1200*100)
     assert result["stats"]["recent_results"] == ["1", "1", "0", "1", "1"]
+
+
+def test_find_player_official_full_parse(monkeypatch):
+    # With a key set, find_player uses the official API and parses lifetime + maps + last matches.
+    monkeypatch.setattr(faceit_service, "get_settings", lambda: SimpleNamespace(faceit_api_key="k", steam_api_key="s"))
+
+    player = {
+        "player_id": "PID",
+        "nickname": "Pro",
+        "avatar": "https://faceit/a.jpg",
+        "country": "ua",
+        "faceit_url": "https://faceit.com/{lang}/players/Pro",
+        "games": {"cs2": {"skill_level": 10, "faceit_elo": 2500, "region": "EU"}},
+    }
+    life = {"Matches": "1500", "Win Rate %": "57", "Average K/D Ratio": "1.20", "Average Headshots %": "52", "Average Kills": "19"}
+    life["Recent Results"] = ["1", "1", "0", "1", "1"]
+    stats = {
+        "lifetime": life,
+        "segments": [
+            {"type": "Map", "label": "de_mirage", "stats": {"Matches": "300", "Win Rate %": "60", "Average K/D Ratio": "1.25"}},
+            {"type": "Map", "label": "de_inferno", "stats": {"Matches": "120", "Win Rate %": "50", "Average K/D Ratio": "1.10"}},
+        ],
+    }
+    history = {"items": [{"match_id": "M1", "started_at": 1700000000, "faceit_url": "https://faceit.com/{lang}/cs2/room/M1"}]}
+    pstats = {"Kills": "24", "Deaths": "16", "K/D Ratio": "1.50", "Headshots %": "55", "Result": "1"}
+    match_stats = {"rounds": [{"round_stats": {"Map": "de_mirage", "Score": "13 / 9"}, "teams": [{"players": [{"player_id": "PID", "player_stats": pstats}]}]}]}
+
+    def fake_official(path, params=None):
+        if path == "/players":
+            return player
+        if path.endswith("/stats/cs2"):
+            return stats
+        if path.endswith("/history"):
+            return history
+        if path.startswith("/matches/"):
+            return match_stats
+        return None
+
+    monkeypatch.setattr(faceit_service, "_official_get", fake_official)
+    result = find_player("76561198000000000")
+    assert result["found"] is True
+    assert result["detail_level"] == "full"
+    assert result["source"] == "faceit_api"
+    assert result["stats"]["matches"] == "1500"
+    assert result["stats"]["avg_kills"] == "19"
+    # maps sorted by matches desc, named
+    assert result["maps"][0]["name"] == "de_mirage"
+    assert result["maps"][0]["win_rate"] == "60"
+    # last match parsed with per-match K/D + result
+    m0 = result["matches"][0]
+    assert m0["map"] == "de_mirage"
+    assert m0["kd_ratio"] == "1.50"
+    assert m0["result"] == "win"
+    assert m0["score"] == "13 / 9"
+    assert m0["date"] == "2023-11-14"
 
 
 def test_find_player_not_found(monkeypatch):
