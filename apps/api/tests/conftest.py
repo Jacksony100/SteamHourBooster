@@ -24,7 +24,10 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture(autouse=True)
 def reset_db():
+    from app.faceit.service import reset_faceit_cache
+
     reset_rate_limits()
+    reset_faceit_cache()
     set_steam_client_adapter(None)
     set_runtime_store(MemoryRuntimeStore())
     set_mailer(ConsoleMailer())

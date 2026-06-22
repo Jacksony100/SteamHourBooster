@@ -10,6 +10,8 @@ change — set FACEIT_API_KEY to use the official, more reliable Data API instea
 from __future__ import annotations
 
 import re
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 
 import httpx
@@ -19,8 +21,18 @@ from app.core.observability import get_logger
 
 logger = get_logger("app.faceit")
 
-FACEIT_MATCH_LIMIT = 10  # how many recent matches to parse in detail (official API)
+FACEIT_MATCH_LIMIT = 20  # how many recent matches to parse in detail (official API)
+FACEIT_MATCH_WORKERS = 8  # parallel per-match stat fetches
 FACEIT_OPEN_API = "https://open.faceit.com/data/v4"   # official, key required
+
+# Short-lived result cache (a lookup hits the FACEIT API ~20+ times, so cache it).
+_CACHE_TTL = 120.0
+_CACHE_MAX = 256
+_cache: dict[str, tuple[float, dict]] = {}
+
+
+def reset_faceit_cache() -> None:
+    _cache.clear()
 FACEIT_WEB_API = "https://api.faceit.com"             # public web endpoints, keyless
 STEAM_API = "https://api.steampowered.com"
 STEAM_COMMUNITY = "https://steamcommunity.com"
@@ -271,41 +283,42 @@ def _iso_date(ts) -> str | None:
         return None
 
 
+def _parse_one_match(player_id: str, item: dict) -> dict:
+    mid = item.get("match_id")
+    match = {
+        "match_id": mid,
+        "date": _iso_date(item.get("started_at") or item.get("finished_at")),
+        "faceit_url": (item.get("faceit_url") or "").replace("{lang}", "en") or None,
+    }
+    stats = _official_get(f"/matches/{mid}/stats") if mid else None
+    rounds = (stats or {}).get("rounds") or []
+    if rounds and isinstance(rounds[0], dict):
+        rs = rounds[0].get("round_stats") or {}
+        match["map"] = rs.get("Map")
+        match["score"] = rs.get("Score")
+        for team in rounds[0].get("teams") or []:
+            for player in team.get("players") or []:
+                if player.get("player_id") == player_id:
+                    ps = player.get("player_stats") or {}
+                    match["kills"] = _opt(ps.get("Kills"))
+                    match["deaths"] = _opt(ps.get("Deaths"))
+                    match["kd_ratio"] = _opt(ps.get("K/D Ratio"))
+                    match["headshots"] = _opt(ps.get("Headshots %"))
+                    match["result"] = "win" if str(ps.get("Result")) == "1" else "loss"
+    return match
+
+
 def _official_matches(player_id: str) -> list:
-    """Parse the last N matches in detail: per-match map, score, K/D, HS%, result."""
+    """Parse the last N matches in detail (map, score, K/D, HS%, result), in parallel."""
     hist = _official_get(f"/players/{player_id}/history", {"game": "cs2", "limit": FACEIT_MATCH_LIMIT})
-    items = (hist or {}).get("items") or []
-    out: list[dict] = []
-    for item in items[:FACEIT_MATCH_LIMIT]:
-        mid = item.get("match_id")
-        match = {
-            "match_id": mid,
-            "date": _iso_date(item.get("started_at") or item.get("finished_at")),
-            "faceit_url": (item.get("faceit_url") or "").replace("{lang}", "en") or None,
-        }
-        stats = _official_get(f"/matches/{mid}/stats") if mid else None
-        rounds = (stats or {}).get("rounds") or []
-        if rounds and isinstance(rounds[0], dict):
-            rs = rounds[0].get("round_stats") or {}
-            match["map"] = rs.get("Map")
-            match["score"] = rs.get("Score")
-            for team in rounds[0].get("teams") or []:
-                for player in team.get("players") or []:
-                    if player.get("player_id") == player_id:
-                        ps = player.get("player_stats") or {}
-                        match["kills"] = _opt(ps.get("Kills"))
-                        match["deaths"] = _opt(ps.get("Deaths"))
-                        match["kd_ratio"] = _opt(ps.get("K/D Ratio"))
-                        match["headshots"] = _opt(ps.get("Headshots %"))
-                        match["result"] = "win" if str(ps.get("Result")) == "1" else "loss"
-        out.append(match)
-    return out
+    items = ((hist or {}).get("items") or [])[:FACEIT_MATCH_LIMIT]
+    if not items:
+        return []
+    with ThreadPoolExecutor(max_workers=FACEIT_MATCH_WORKERS) as pool:
+        return list(pool.map(lambda it: _parse_one_match(player_id, it), items))
 
 
-def _find_via_official(steamid64: str) -> dict | None:
-    player = _official_get("/players", {"game": "cs2", "game_player_id": steamid64})
-    if not player:
-        return None
+def _official_result(player: dict, steamid64: str | None) -> dict:
     cs2 = (player.get("games") or {}).get("cs2") or {}
     player_id = player.get("player_id")
     profile = {
@@ -321,18 +334,42 @@ def _find_via_official(steamid64: str) -> dict | None:
     lifetime = (stats_raw or {}).get("lifetime") or {}
     maps = _segments_to_maps((stats_raw or {}).get("segments"))
     matches = _official_matches(player_id) if player_id else []
-    return _result(steamid64, profile, lifetime, maps=maps, matches=matches, detail_level="full")
+    return _result(steamid64 or cs2.get("game_player_id"), profile, lifetime, maps=maps, matches=matches, detail_level="full")
 
 
-def find_player(steam_input: str) -> dict:
-    steamid64 = resolve_steamid64(steam_input)
-    if not steamid64:
-        return {
-            "found": False,
-            "configured": True,
-            "message": "Could not read a SteamID64 from that input. Paste a steamcommunity.com profile link or a 17-digit SteamID64.",
-        }
+def _find_via_official(steamid64: str) -> dict | None:
+    player = _official_get("/players", {"game": "cs2", "game_player_id": steamid64})
+    return _official_result(player, steamid64) if player else None
 
+
+def _official_by_nickname(nickname: str) -> dict | None:
+    player = _official_get("/players", {"nickname": nickname})
+    return _official_result(player, None) if player and player.get("player_id") else None
+
+
+def _keyless_by_nickname(nickname: str) -> dict | None:
+    found = _payload(_get_json(f"{FACEIT_WEB_API}/users/v1/nicknames/{nickname}"))
+    guid = found.get("id") or found.get("guid")
+    sid = (found.get("games") or {}).get("cs2", {}).get("game_player_id") or (found.get("games") or {}).get("csgo", {}).get("game_player_id")
+    if sid:
+        return _find_via_keyless(sid)
+    if not guid:
+        return None
+    games = found.get("games") or {}
+    cs2 = games.get("cs2") or games.get("csgo") or {}
+    profile = {
+        "player_id": guid,
+        "nickname": found.get("nickname") or nickname,
+        "avatar": found.get("avatar"),
+        "country": found.get("country"),
+        "faceit_url": f"https://www.faceit.com/en/players/{found.get('nickname') or nickname}",
+        "cs2": {"skill_level": cs2.get("skill_level"), "faceit_elo": cs2.get("faceit_elo"), "region": cs2.get("region")},
+        "source": "faceit_web",
+    }
+    return _result(None, profile, {})
+
+
+def _by_steamid(steamid64: str) -> dict:
     settings = get_settings()
     data = _find_via_official(steamid64) if settings.faceit_api_key else None
     if data is None:
@@ -340,3 +377,51 @@ def find_player(steam_input: str) -> dict:
     if not data:
         return {"found": False, "configured": True, "steamid64": steamid64, "message": "No FACEIT profile found for this Steam account."}
     return data
+
+
+def _by_nickname(nickname: str) -> dict | None:
+    return _official_by_nickname(nickname) if get_settings().faceit_api_key else _keyless_by_nickname(nickname)
+
+
+def _find_player_uncached(query: str) -> dict:
+    text = (query or "").strip()
+    sid, vanity = parse_steam_input(text)
+    is_steam_url = "steamcommunity.com" in text.lower()
+
+    # A Steam profile URL or a raw SteamID64 -> resolve via Steam, then FACEIT by steamid.
+    if sid or is_steam_url:
+        steamid64 = sid or (resolve_steamid64(text) if vanity else None)
+        if not steamid64:
+            return {"found": False, "configured": True, "message": "Could not read a SteamID64 from that Steam link."}
+        return _by_steamid(steamid64)
+
+    # A bare token -> try it as a FACEIT nickname first, then as a Steam vanity.
+    # `vanity` is only set when parse_steam_input validated the charset, so junk
+    # input (e.g. "@@@") yields name=None and never makes a network call.
+    name = vanity
+    if name:
+        data = _by_nickname(name)
+        if data:
+            return data
+        steamid64 = _resolve_vanity_xml(name) or _resolve_vanity_api(name)
+        if steamid64:
+            return _by_steamid(steamid64)
+    return {
+        "found": False,
+        "configured": True,
+        "message": "No FACEIT player or Steam profile found. Try a FACEIT nickname, a steamcommunity.com link, or a SteamID64.",
+    }
+
+
+def find_player(query: str) -> dict:
+    key = (query or "").strip().lower()
+    now = time.monotonic()
+    hit = _cache.get(key)
+    if hit and (now - hit[0]) < _CACHE_TTL:
+        return hit[1]
+    result = _find_player_uncached(query)
+    if result.get("found"):
+        if len(_cache) >= _CACHE_MAX:
+            _cache.pop(next(iter(_cache)), None)
+        _cache[key] = (now, result)
+    return result

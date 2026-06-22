@@ -18,7 +18,45 @@ def test_find_bad_input_no_network(client):
     assert resp.status_code == 200
     body = resp.json()
     assert body["found"] is False
-    assert "Could not read" in body["message"]
+    assert body["message"]
+
+
+def test_find_by_faceit_nickname_official(monkeypatch):
+    monkeypatch.setattr(faceit_service, "get_settings", lambda: SimpleNamespace(faceit_api_key="k", steam_api_key="s"))
+    player = {"player_id": "PID", "nickname": "donk666", "games": {"cs2": {"skill_level": 10, "faceit_elo": 5000, "game_player_id": "765611980"}}}
+
+    def fake_official(path, params=None):
+        if path == "/players" and params and params.get("nickname") == "donk666":
+            return player
+        if path.endswith("/stats/cs2"):
+            return {"lifetime": {"Matches": "7000", "Average K/D Ratio": "1.4"}, "segments": []}
+        if path.endswith("/history"):
+            return {"items": []}
+        return None
+
+    monkeypatch.setattr(faceit_service, "_official_get", fake_official)
+    result = find_player("donk666")  # a bare FACEIT nickname, not a Steam link
+    assert result["found"] is True
+    assert result["nickname"] == "donk666"
+    assert result["faceit_elo"] == 5000
+    assert result["stats"]["kd_ratio"] == "1.4"
+
+
+def test_result_cache_returns_same_object(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_official(path, params=None):
+        if path == "/players":
+            calls["n"] += 1
+            return {"player_id": "P", "nickname": "x", "games": {"cs2": {"skill_level": 5, "faceit_elo": 1500, "game_player_id": "765"}}}
+        return {"lifetime": {}, "segments": [], "items": []} if path.endswith(("stats/cs2", "history")) else None
+
+    monkeypatch.setattr(faceit_service, "get_settings", lambda: SimpleNamespace(faceit_api_key="k", steam_api_key="s"))
+    monkeypatch.setattr(faceit_service, "_official_get", fake_official)
+    faceit_service.reset_faceit_cache()
+    find_player("CachedNick")
+    find_player("cachednick")  # case-insensitive cache key
+    assert calls["n"] == 1  # second lookup served from cache
 
 
 def test_find_player_keyless_mapping(monkeypatch):

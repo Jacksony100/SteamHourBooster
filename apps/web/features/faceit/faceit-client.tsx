@@ -118,16 +118,17 @@ export function FaceitClient() {
         FACEIT <span className="text-gradient">Finder</span>
       </h1>
       <p className="mt-2 max-w-xl text-slate-400">
-        Paste a Steam profile link (or a 17-digit SteamID64) to look up the public FACEIT CS2 level and stats — no login required.
+        Enter a FACEIT nickname, a Steam profile link, or a SteamID64 to look up full FACEIT CS2 stats — level, ELO,
+        per-map breakdown and recent matches with K/D. No login required.
       </p>
 
       <form onSubmit={search} className="mt-6 flex flex-col gap-3 sm:flex-row">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="https://steamcommunity.com/id/yourname  or  7656119..."
+          placeholder="FACEIT nickname  ·  steamcommunity.com/id/...  ·  7656119..."
           className="flex-1 rounded-xl border border-shb-border bg-white/5 px-4 py-3 text-white outline-none focus:border-sky-400/60"
-          aria-label="Steam profile URL or SteamID64"
+          aria-label="FACEIT nickname, Steam profile URL, or SteamID64"
         />
         <button type="submit" disabled={loading || !input.trim()} className="cta-gradient flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-white disabled:opacity-50">
           <Search className="h-4 w-4" />
