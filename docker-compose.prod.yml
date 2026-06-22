@@ -1,0 +1,150 @@
+# Production stack: Caddy (auto Let's Encrypt SSL) -> web (Next.js) + api (FastAPI),
+# with Postgres, Redis and the worker. Only Caddy exposes ports (80/443).
+#
+#   cp .env.production.example .env
+#   # edit .env (DOMAIN, ACME_EMAIL, secrets, ADMIN_PASSWORD, ...)
+#   docker compose -f docker-compose.prod.yml up -d --build
+name: deckpilot-prod
+
+x-api-env: &api-env
+  APP_ENV: production
+  WEB_BASE_URL: https://${DOMAIN}
+  API_BASE_URL: https://${DOMAIN}
+  CORS_ORIGINS: https://${DOMAIN}
+  SESSION_COOKIE_NAME: deckpilot_session
+  CSRF_COOKIE_NAME: deckpilot_csrf
+  COOKIE_SECURE: "true"
+  COOKIE_SAMESITE: lax
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-deckpilot}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-deckpilot}
+  REDIS_URL: redis://redis:6379/0
+  SECRET_KEY: ${SECRET_KEY}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+  STEAM_API_KEY: ${STEAM_API_KEY:-}
+  STEAM_TEST_MODE: ${STEAM_TEST_MODE:-true}
+  STEAM_INTEGRATION_MODE: ${STEAM_INTEGRATION_MODE:-demo}
+  STEAM_OFFICIAL_LINKING_ENABLED: ${STEAM_OFFICIAL_LINKING_ENABLED:-false}
+  STEAM_REAL_SESSIONS_ENABLED: ${STEAM_REAL_SESSIONS_ENABLED:-false}
+  STEAM_DROP_PASSWORD_AFTER_LINK: ${STEAM_DROP_PASSWORD_AFTER_LINK:-true}
+  ALLOW_DEMO_MODE_IN_PRODUCTION: ${ALLOW_DEMO_MODE_IN_PRODUCTION:-true}
+  FACEIT_API_KEY: ${FACEIT_API_KEY:-}
+  BILLING_PROVIDER: ${BILLING_PROVIDER:-mock}
+  BILLING_CURRENCY: ${BILLING_CURRENCY:-USD}
+  COINBASE_API_KEY: ${COINBASE_API_KEY:-}
+  COINBASE_WEBHOOK_SECRET: ${COINBASE_WEBHOOK_SECRET:-}
+  ENABLE_LIFETIME_CHECKOUT: ${ENABLE_LIFETIME_CHECKOUT:-false}
+  EMAIL_PROVIDER: ${EMAIL_PROVIDER:-console}
+  EMAIL_FROM: ${EMAIL_FROM:-DeckPilot <no-reply@deckpilot.ru>}
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+  SEED_DEMO_USER: ${SEED_DEMO_USER:-false}
+  DEMO_USERNAME: ${DEMO_USERNAME:-demo}
+  DEMO_PASSWORD: ${DEMO_PASSWORD:-}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_JSON: "true"
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-deckpilot}
+      POSTGRES_USER: ${POSTGRES_USER:-deckpilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-deckpilot} -d ${POSTGRES_DB:-deckpilot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *api-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=3).read()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *api-env
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: python /srv/worker/app/main.py
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_BASE_PATH: /api/v1
+      INTERNAL_API_URL: http://api:8000/api/v1
+      INTERNAL_API_ORIGIN: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+      - api
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:

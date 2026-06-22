@@ -1,0 +1,28 @@
+# Automatic HTTPS (Let's Encrypt) for $DOMAIN.
+# Requirements: ports 80 + 443 open on this server, and $DOMAIN's DNS A record
+# pointing at this server's public IP. Caddy obtains + renews the certificate itself.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# API + auth/billing/etc. -> FastAPI; everything else -> the Next.js app.
+	@api path /api/*
+	handle @api {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+
+	# Edge security headers (complement the app-level ones).
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
