@@ -13,7 +13,7 @@ pytest==9.1.0
 pytest-cov==6.0.0
 python-multipart==0.0.32
 redis==5.2.1
-rq==2.0.0
+rq==2.10.0
 ruff==0.8.6
 SQLAlchemy==2.0.50
 uvicorn[standard]==0.32.1
