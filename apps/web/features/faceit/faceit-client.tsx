@@ -1,266 +1,292 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, Search } from "lucide-react";
+import { Toaster, toast } from "sonner";
+import { ArrowLeft, Eye, Maximize2, Plus, RefreshCw, Search, Star, Swords, X } from "lucide-react";
 
 import { api } from "@/lib/api";
 
-type FaceitStats = {
-  matches: string | null;
-  win_rate: string | null;
-  kd_ratio: string | null;
-  headshots: string | null;
-  avg_kills: string | null;
-  mvps: string | null;
-  current_win_streak: string | null;
-  longest_win_streak: string | null;
-  recent_results: string[];
-};
+import { CompareView } from "./compare-view";
+import { I18nProvider, useI18n } from "./i18n";
+import { PlayerResult } from "./player-result";
+import { addRecent, clearRecent, getRecent } from "./recent";
+import { comparePermalink, copyText } from "./share";
+import type { FaceitCompare, FaceitResult } from "./types";
+import { WatchlistProvider } from "./watchlist-context";
+import { WatchlistTab } from "./watchlist-tab";
 
-type FaceitMap = {
-  name: string;
-  matches: string | null;
-  win_rate: string | null;
-  kd_ratio: string | null;
-};
+type Mode = "single" | "compare" | "watch";
 
-type FaceitMatch = {
-  match_id: string | null;
-  map: string | null;
-  result: string | null;
-  score: string | null;
-  kills: string | null;
-  deaths: string | null;
-  kd_ratio: string | null;
-  headshots: string | null;
-  date: string | null;
-  faceit_url: string | null;
-};
+const PRESET_PROS = ["s1mple", "donk", "ZywOo", "NiKo", "m0NESY"];
+const INPUT_CLASS = "flex-1 rounded-xl border border-shb-border bg-white/5 px-4 py-3 text-white outline-none focus:border-sky-400/60";
 
-type FaceitResult = {
-  found: boolean;
-  configured: boolean;
-  steamid64: string | null;
-  nickname: string | null;
-  avatar: string | null;
-  country: string | null;
-  faceit_url: string | null;
-  skill_level: number | null;
-  faceit_elo: number | null;
-  region: string | null;
-  stats: FaceitStats;
-  maps: FaceitMap[];
-  matches: FaceitMatch[];
-  message: string | null;
-  source: string | null;
-  detail_level: string;
-};
+function FaceitInner({ initialQuery }: { initialQuery?: string }) {
+  const { t, lang, setLang } = useI18n();
+  const [mode, setMode] = useState<Mode>("single");
 
-function mapLabel(name: string) {
-  return name.replace(/^de_/, "").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-// Official FACEIT skill-level palette (1–10).
-const LEVEL_COLORS: Record<number, string> = {
-  1: "#EEEEEE", 2: "#1CE400", 3: "#1CE400", 4: "#FFC800", 5: "#FFC800",
-  6: "#FFC800", 7: "#FFC800", 8: "#FF6309", 9: "#FF6309", 10: "#FE1F00",
-};
-
-function flag(country: string | null) {
-  if (!country || country.length !== 2) return "";
-  const base = 0x1f1e6;
-  return String.fromCodePoint(...country.toUpperCase().split("").map((c) => base + c.charCodeAt(0) - 65));
-}
-
-function Stat({ label, value }: { label: string; value: string | null }) {
-  return (
-    <div className="premium-card rounded-xl p-4 text-center">
-      <div className="font-display text-2xl font-bold text-white">{value ?? "—"}</div>
-      <div className="mt-1 text-xs uppercase tracking-wide text-slate-400">{label}</div>
-    </div>
-  );
-}
-
-export function FaceitClient() {
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [input, setInput] = useState(initialQuery ?? "");
   const [result, setResult] = useState<FaceitResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  async function search(e: React.FormEvent) {
-    e.preventDefault();
-    if (!input.trim()) return;
+  const [inputs, setInputs] = useState<string[]>(["", ""]);
+  const [compare, setCompare] = useState<FaceitCompare | null>(null);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [recent, setRecent] = useState<string[]>([]);
+  const [me, setMe] = useState<string | null>(null);
+  const [wide, setWide] = useState(false);
+  const didInit = useRef(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const lookup = useCallback(async (value: string, opts?: { refresh?: boolean }) => {
+    const q = value.trim();
+    if (!q) return;
+    setMode("single");
+    setInput(q);
     setLoading(true);
     setError(null);
-    setResult(null);
+    if (!opts?.refresh) setResult(null);
     try {
-      const data = await api<FaceitResult>(`/faceit/find?steam=${encodeURIComponent(input.trim())}`);
+      const url = `/faceit/find?steam=${encodeURIComponent(q)}${opts?.refresh ? "&refresh=1" : ""}`;
+      const data = await api<FaceitResult>(url);
       setResult(data);
+      setRecent(addRecent(q));
+      try { history.replaceState(null, "", `?q=${encodeURIComponent(q)}`); } catch {}
+      if (opts?.refresh) toast.success("Refreshed");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lookup failed");
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const runCompareWith = useCallback(async (qs: string[]) => {
+    const clean = qs.map((v) => v.trim()).filter(Boolean);
+    if (clean.length < 2) return;
+    setMode("compare");
+    setLoading(true);
+    setError(null);
+    setCompare(null);
+    try {
+      const query = clean.map((q) => `players=${encodeURIComponent(q)}`).join("&");
+      setCompare(await api<FaceitCompare>(`/faceit/compare?${query}`));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Comparison failed");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Init: stored prefs + deep links (?q= / ?compare=) or initialQuery.
+  useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+    setRecent(getRecent());
+    try {
+      setMe(localStorage.getItem("faceit_me"));
+      const savedTab = localStorage.getItem("faceit_tab") as Mode | null;
+      if (savedTab && ["single", "compare", "watch"].includes(savedTab)) setMode(savedTab);
+      setWide(localStorage.getItem("faceit_wide") === "1");
+    } catch {}
+    const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+    // Compare deep link: prefer plain ?players=a&players=b; fall back to legacy ?compare=<querystring>.
+    let players = params.getAll("players");
+    if (players.length < 2 && params.get("compare")) {
+      players = new URLSearchParams(params.get("compare")!).getAll("players");
+    }
+    const q = initialQuery || params.get("q");
+    if (players.length >= 2) { setInputs(players.slice(0, 5)); runCompareWith(players); return; }
+    if (q) { lookup(q); return; }
+    searchRef.current?.focus();
+  }, [initialQuery, lookup, runCompareWith]);
+
+  // "/" focuses the search box; Esc clears it when focused.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "/" && document.activeElement?.tagName !== "INPUT") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      } else if (e.key === "Escape" && document.activeElement === searchRef.current) {
+        setInput("");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError(null);
+    try { localStorage.setItem("faceit_tab", next); } catch {}
+  }
+  function setInputAt(i: number, v: string) { setInputs((arr) => arr.map((x, j) => (j === i ? v : x))); }
+  function addInput() { setInputs((arr) => (arr.length < 5 ? [...arr, ""] : arr)); }
+  function removeInput(i: number) { setInputs((arr) => (arr.length > 2 ? arr.filter((_, j) => j !== i) : arr)); }
+  function addPreset(nick: string) {
+    setInputs((arr) => {
+      const empty = arr.findIndex((x) => !x.trim());
+      if (empty >= 0) return arr.map((x, j) => (j === empty ? nick : x));
+      return arr.length < 5 ? [...arr, nick] : arr.map((x, j) => (j === arr.length - 1 ? nick : x));
+    });
+  }
+  function setAsMe(nick: string) {
+    setMe(nick);
+    try { localStorage.setItem("faceit_me", nick); } catch {}
+    toast.success(`Set ${nick} as you`);
+  }
+  async function copyCompareLink() {
+    const ok = await copyText(comparePermalink(inputs));
+    toast[ok ? "success" : "error"](ok ? "Compare link copied" : "Copy failed");
+  }
+  function toggleWide() {
+    setWide((w) => { try { localStorage.setItem("faceit_wide", w ? "0" : "1"); } catch {} return !w; });
   }
 
-  const level = result?.skill_level ?? 0;
-  const levelColor = LEVEL_COLORS[level] ?? "#3A4253";
+  const tab = (m: Mode, label: string, Icon: typeof Search) => (
+    <button type="button" onClick={() => switchMode(m)} className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${mode === m ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"}`}>
+      <Icon className="h-4 w-4" /> {label}
+    </button>
+  );
 
   return (
-    <main className="mx-auto min-h-screen max-w-3xl px-5 py-12">
-      <Link href="/" className="mb-8 inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white">
-        <ArrowLeft className="h-4 w-4" />
-        Back to home
-      </Link>
+    <main className={`mx-auto min-h-screen px-5 py-12 transition-[max-width] ${wide ? "max-w-5xl" : "max-w-3xl"}`}>
+      <Toaster theme="dark" position="bottom-right" richColors />
+      <div className="mb-8 flex items-center justify-between">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white">
+          <ArrowLeft className="h-4 w-4" /> {t("back")}
+        </Link>
+        <div className="flex items-center gap-2">
+          <button onClick={toggleWide} className={`rounded-lg border border-shb-border p-1.5 ${wide ? "bg-white/10 text-white" : "text-slate-400"}`} aria-label="Toggle width" title="Wide layout">
+            <Maximize2 className="h-4 w-4" />
+          </button>
+          <div className="inline-flex rounded-lg border border-shb-border bg-white/5 p-0.5 text-xs">
+            {(["ru", "en"] as const).map((l) => (
+              <button key={l} onClick={() => setLang(l)} className={`rounded-md px-2.5 py-1 font-semibold uppercase ${lang === l ? "bg-white/10 text-white" : "text-slate-400"}`}>{l}</button>
+            ))}
+          </div>
+        </div>
+      </div>
 
-      <h1 className="font-display text-4xl font-bold">
-        FACEIT <span className="text-gradient">Finder</span>
-      </h1>
-      <p className="mt-2 max-w-xl text-slate-400">
-        Enter a FACEIT nickname, a Steam profile link, or a SteamID64 to look up full FACEIT CS2 stats — level, ELO,
-        per-map breakdown and recent matches with K/D. No login required.
-      </p>
+      <h1 className="font-display text-4xl font-bold">FACEIT <span className="text-gradient">Finder</span></h1>
+      <p className="mt-2 max-w-xl text-slate-400">{t("subtitle")}</p>
 
-      <form onSubmit={search} className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="FACEIT nickname  ·  steamcommunity.com/id/...  ·  7656119..."
-          className="flex-1 rounded-xl border border-shb-border bg-white/5 px-4 py-3 text-white outline-none focus:border-sky-400/60"
-          aria-label="FACEIT nickname, Steam profile URL, or SteamID64"
-        />
-        <button type="submit" disabled={loading || !input.trim()} className="cta-gradient flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-white disabled:opacity-50">
-          <Search className="h-4 w-4" />
-          {loading ? "Searching..." : "Find"}
-        </button>
-      </form>
+      <div className="mt-6 inline-flex rounded-xl border border-shb-border bg-white/5 p-1">
+        {tab("single", t("tabLookup"), Search)}
+        {tab("compare", t("tabCompare"), Swords)}
+        {tab("watch", t("tabWatch"), Eye)}
+      </div>
+
+      {mode === "single" && (
+        <>
+          <form onSubmit={(e) => { e.preventDefault(); lookup(input); }} className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <input ref={searchRef} value={input} onChange={(e) => setInput(e.target.value)} placeholder="FACEIT nickname  ·  steamcommunity.com/id/...  ·  7656119...  ( / )" className={INPUT_CLASS} aria-label="FACEIT nickname, Steam profile URL, or SteamID64" />
+            <button type="submit" disabled={loading || !input.trim()} className="cta-gradient flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-white disabled:opacity-50">
+              <Search className="h-4 w-4" /> {loading ? t("searching") : t("find")}
+            </button>
+          </form>
+          {recent.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-slate-500">{lang === "ru" ? "Недавние" : "Recent"}:</span>
+              {recent.map((r) => (
+                <button key={r} onClick={() => lookup(r)} className="rounded-lg border border-white/10 px-2.5 py-1 text-xs text-slate-300 hover:border-white/25">{r}</button>
+              ))}
+              {me && <button onClick={() => lookup(me)} className="rounded-lg border border-amber-400/30 px-2.5 py-1 text-xs text-amber-300">★ {me}</button>}
+              <button onClick={() => setRecent(clearRecent())} className="text-xs text-slate-500 hover:text-rose-300">✕</button>
+            </div>
+          )}
+        </>
+      )}
+
+      {mode === "compare" && (
+        <form onSubmit={(e) => { e.preventDefault(); runCompareWith(inputs); }} className="mt-4 space-y-3">
+          <div className="space-y-2">
+            {inputs.map((v, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input value={v} onChange={(e) => setInputAt(i, e.target.value)} placeholder={`#${i + 1} — nickname / Steam link / ID`} className={INPUT_CLASS} aria-label={`Player ${i + 1}`} />
+                {inputs.length > 2 && <button type="button" onClick={() => removeInput(i)} className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-rose-300" aria-label="Remove player"><X className="h-4 w-4" /></button>}
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {inputs.length < 5 && <button type="button" onClick={addInput} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-300 hover:border-white/25"><Plus className="h-3.5 w-3.5" /> {t("addPlayer")}</button>}
+            <span className="text-xs text-slate-500">{t("vsPro")}:</span>
+            {me && <button type="button" onClick={() => addPreset(me)} className="rounded-lg border border-amber-400/30 px-2.5 py-1 text-xs text-amber-300">★ {me}</button>}
+            {PRESET_PROS.map((p) => <button key={p} type="button" onClick={() => addPreset(p)} className="rounded-lg border border-white/10 px-2.5 py-1 text-xs text-slate-300 hover:border-white/25">{p}</button>)}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" disabled={loading || inputs.filter((v) => v.trim()).length < 2} className="cta-gradient flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-semibold text-white disabled:opacity-50">
+              <Swords className="h-4 w-4" /> {loading ? t("comparing") : t("compare")}
+            </button>
+            {compare && <button type="button" onClick={copyCompareLink} className="rounded-xl border border-white/10 px-4 py-3 text-sm text-slate-300 hover:border-white/25">{lang === "ru" ? "Копировать ссылку" : "Copy link"}</button>}
+          </div>
+        </form>
+      )}
 
       {error && <div className="mt-6 rounded-xl border border-shb-danger/30 bg-shb-danger/10 p-4 text-rose-50" role="alert">{error}</div>}
 
-      {result && !result.found && (
-        <div className="mt-6 rounded-xl border border-shb-border bg-white/[0.035] p-6 text-center text-slate-300">
-          {result.message ?? "No FACEIT profile found for this account."}
+      {mode === "single" && loading && !result && <ResultSkeleton />}
+
+      {mode === "single" && !loading && !result && !error && (
+        <div className="mt-8 rounded-xl border border-shb-border bg-white/[0.035] p-6 text-center">
+          <p className="text-slate-300">{lang === "ru" ? "Введите ник, ссылку Steam или SteamID64. Например:" : "Enter a nickname, Steam link or SteamID64. Try:"}</p>
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            {PRESET_PROS.map((p) => (
+              <button key={p} onClick={() => lookup(p)} className="rounded-lg border border-white/10 px-3 py-1.5 text-sm text-slate-200 hover:border-white/25">{p}</button>
+            ))}
+          </div>
         </div>
       )}
 
-      {result?.found && (
-        <div className="mt-8 space-y-5">
-          <div className="premium-card flex flex-wrap items-center gap-5 rounded-2xl p-6">
-            {result.avatar ? (
-              // eslint-disable-next-line @next/next/no-img-element -- external FACEIT CDN avatar
-              <img src={result.avatar} alt={result.nickname ?? "avatar"} width={72} height={72} className="rounded-xl border border-white/10 object-cover" />
-            ) : (
-              <div className="grid h-[72px] w-[72px] place-items-center rounded-xl border border-white/10 bg-white/5 text-2xl text-slate-300">
-                {(result.nickname ?? "?").charAt(0).toUpperCase()}
-              </div>
+      {mode === "single" && result && !result.found && (
+        <div className="mt-6 rounded-xl border border-shb-border bg-white/[0.035] p-6 text-center text-slate-300">{result.message ?? t("notFound")}</div>
+      )}
+      {mode === "single" && result?.found && (
+        <div className="mt-8">
+          <div className="mb-3 flex items-center justify-end gap-2">
+            {result.nickname && me !== result.nickname && (
+              <button onClick={() => setAsMe(result.nickname!)} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1 text-xs text-slate-300 hover:border-amber-400/40 hover:text-amber-300">
+                <Star className="h-3.5 w-3.5" /> {lang === "ru" ? "Это я" : "This is me"}
+              </button>
             )}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 text-xl font-bold text-white">
-                <span className="truncate">{result.nickname}</span>
-                <span className="text-lg">{flag(result.country)}</span>
-              </div>
-              <div className="text-sm text-slate-400">
-                {result.region && `Region ${result.region} · `}
-                {result.faceit_elo != null && `${result.faceit_elo} ELO`}
-              </div>
-              {result.faceit_url && (
-                <a href={result.faceit_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1.5 text-sm text-sky-300 hover:text-sky-200">
-                  Open FACEIT profile <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              )}
-            </div>
-            <div className="grid place-items-center">
-              <div
-                className="grid h-16 w-16 place-items-center rounded-2xl font-display text-2xl font-black"
-                style={{ background: `${levelColor}22`, color: levelColor, border: `2px solid ${levelColor}` }}
-                title={`FACEIT level ${level}`}
-              >
-                {level || "?"}
-              </div>
-              <div className="mt-1 text-xs text-slate-400">Level</div>
-            </div>
+            <button onClick={() => lookup(input, { refresh: true })} disabled={loading} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1 text-xs text-slate-300 hover:border-white/25 disabled:opacity-50">
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> {lang === "ru" ? "Обновить" : "Refresh"}
+            </button>
           </div>
-
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Matches" value={result.stats.matches} />
-            <Stat label="Win rate" value={result.stats.win_rate ? `${result.stats.win_rate}%` : null} />
-            <Stat label="K/D" value={result.stats.kd_ratio} />
-            <Stat label="Headshots" value={result.stats.headshots ? `${result.stats.headshots}%` : null} />
-          </div>
-
-          {result.stats.recent_results.length > 0 && (
-            <div className="premium-card rounded-xl p-4">
-              <div className="mb-2 text-xs uppercase tracking-wide text-slate-400">Recent results</div>
-              <div className="flex gap-2">
-                {result.stats.recent_results.map((r, i) => (
-                  <span
-                    key={i}
-                    className="grid h-7 w-7 place-items-center rounded-lg text-xs font-bold"
-                    style={r === "1" ? { background: "rgba(61,245,160,.15)", color: "#3DF5A0" } : { background: "rgba(255,92,122,.15)", color: "#FF5C7A" }}
-                  >
-                    {r === "1" ? "W" : "L"}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {result.maps.length > 0 && (
-            <div className="premium-card rounded-xl p-4">
-              <div className="mb-3 text-xs uppercase tracking-wide text-slate-400">By map</div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {result.maps.map((m) => (
-                  <div key={m.name} className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2">
-                    <span className="font-medium text-white">{mapLabel(m.name)}</span>
-                    <span className="text-xs text-slate-400">
-                      {m.matches ?? "—"} matches · {m.win_rate ? `${m.win_rate}% WR` : "—"} · {m.kd_ratio ?? "—"} K/D
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {result.matches.length > 0 && (
-            <div className="premium-card rounded-xl p-4">
-              <div className="mb-3 text-xs uppercase tracking-wide text-slate-400">Last {result.matches.length} matches</div>
-              <div className="space-y-1.5">
-                {result.matches.map((m, i) => (
-                  <a
-                    key={m.match_id ?? i}
-                    href={m.faceit_url ?? undefined}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2 text-sm transition hover:border-white/15"
-                  >
-                    <span
-                      className="grid h-6 w-6 shrink-0 place-items-center rounded text-xs font-bold"
-                      style={m.result === "win" ? { background: "rgba(61,245,160,.15)", color: "#3DF5A0" } : { background: "rgba(255,92,122,.15)", color: "#FF5C7A" }}
-                    >
-                      {m.result === "win" ? "W" : m.result === "loss" ? "L" : "?"}
-                    </span>
-                    <span className="w-24 shrink-0 truncate font-medium text-white">{m.map ? mapLabel(m.map) : "—"}</span>
-                    <span className="w-16 shrink-0 text-slate-400">{m.score ?? ""}</span>
-                    <span className="flex-1 text-right text-slate-300">
-                      {m.kills ?? "—"}/{m.deaths ?? "—"} <span className="text-slate-500">({m.kd_ratio ?? "—"} K/D)</span>
-                    </span>
-                    <span className="hidden w-20 shrink-0 text-right text-xs text-slate-500 sm:block">{m.date ?? ""}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {result.detail_level === "basic" && (
-            <p className="text-xs text-slate-500">
-              Level &amp; ELO are exact. Detailed stats, per-map breakdown and match history require a free FACEIT API key
-              on the server (keyless FACEIT stat endpoints are blocked by FACEIT&apos;s bot protection). Set
-              <code className="mx-1 rounded bg-white/10 px-1">FACEIT_API_KEY</code> and restart the API for full data.
-            </p>
-          )}
+          <PlayerResult result={result} onPick={lookup} />
         </div>
       )}
+      {mode === "compare" && compare && <div className="mt-8"><CompareView players={compare.players} /></div>}
+      {mode === "watch" && <WatchlistTab onPick={lookup} />}
     </main>
+  );
+}
+
+function ResultSkeleton() {
+  return (
+    <div className="mt-8 animate-pulse space-y-5">
+      <div className="premium-card flex items-center gap-5 rounded-2xl p-6">
+        <div className="h-[72px] w-[72px] rounded-xl bg-white/10" />
+        <div className="flex-1 space-y-2">
+          <div className="h-5 w-40 rounded bg-white/10" />
+          <div className="h-3 w-24 rounded bg-white/5" />
+        </div>
+        <div className="h-16 w-16 rounded-2xl bg-white/10" />
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => <div key={i} className="premium-card h-20 rounded-xl" />)}
+      </div>
+      <div className="premium-card h-44 rounded-xl" />
+    </div>
+  );
+}
+
+export function FaceitClient({ initialQuery }: { initialQuery?: string }) {
+  return (
+    <I18nProvider>
+      <WatchlistProvider>
+        <FaceitInner initialQuery={initialQuery} />
+      </WatchlistProvider>
+    </I18nProvider>
   );
 }

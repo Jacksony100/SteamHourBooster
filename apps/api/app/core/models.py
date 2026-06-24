@@ -347,3 +347,35 @@ class SteamOwnedGameCache(Base):
     playtime_forever: Mapped[int] = mapped_column(Integer, default=0)
     img_icon_hash: Mapped[str | None] = mapped_column(String(120), nullable=True)
     last_fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FaceitEloSnapshot(Base):
+    """Daily ELO snapshot for a FACEIT player, captured on lookup / by the watch job.
+
+    Builds a *real* ELO time series over time (the exact per-match ELO API is keyless-
+    only and Cloudflare-blocked). One row per player per calendar day (UTC)."""
+
+    __tablename__ = "faceit_elo_snapshots"
+    __table_args__ = (UniqueConstraint("player_id", "captured_on", name="uq_faceit_elo_snapshot_day"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    player_id: Mapped[str] = mapped_column(String(64), index=True)
+    nickname: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    elo: Mapped[int] = mapped_column(Integer)
+    skill_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    captured_on: Mapped[str] = mapped_column(String(10), index=True)  # YYYY-MM-DD (UTC)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FaceitWatch(Base):
+    """A player a user pins to their FACEIT watchlist (for quick re-lookup + ELO tracking)."""
+
+    __tablename__ = "faceit_watches"
+    __table_args__ = (UniqueConstraint("user_id", "player_id", name="uq_faceit_watch"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    player_id: Mapped[str] = mapped_column(String(64), index=True)
+    nickname: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    country: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     coinbase_charge_url: str = Field(default="https://api.commerce.coinbase.com/charges", alias="COINBASE_CHARGE_URL")
     enable_lifetime_checkout: bool = Field(default=False, alias="ENABLE_LIFETIME_CHECKOUT")
     faceit_api_key: str = Field(default="", alias="FACEIT_API_KEY")
+    # FACEIT Finder tuning (all optional; sane defaults). A single lookup fans out to
+    # ~match_limit FACEIT calls, so the result is cached for cache_ttl seconds.
+    # 0 disables the respective feature: 0 matches = skip match parsing, 0 ELO points =
+    # skip the trend chart, 0 TTL = no result caching (every lookup hits FACEIT live).
+    faceit_match_limit: int = Field(default=20, alias="FACEIT_MATCH_LIMIT")
+    faceit_cache_ttl_seconds: int = Field(default=120, alias="FACEIT_CACHE_TTL_SECONDS")
+    faceit_elo_history_size: int = Field(default=30, alias="FACEIT_ELO_HISTORY_SIZE")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     log_json: bool = Field(default=False, alias="LOG_JSON")
     sentry_dsn: str = Field(default="", alias="SENTRY_DSN")
@@ -92,6 +99,27 @@ class Settings(BaseSettings):
         if normalized not in allowed:
             raise ValueError(f"STEAM_INTEGRATION_MODE must be one of {sorted(allowed)}")
         return normalized
+
+    @field_validator("faceit_match_limit")
+    @classmethod
+    def validate_faceit_match_limit(cls, value: int) -> int:
+        if not 0 <= value <= 50:
+            raise ValueError("FACEIT_MATCH_LIMIT must be between 0 and 50")
+        return value
+
+    @field_validator("faceit_elo_history_size")
+    @classmethod
+    def validate_faceit_elo_history_size(cls, value: int) -> int:
+        if not 0 <= value <= 100:
+            raise ValueError("FACEIT_ELO_HISTORY_SIZE must be between 0 and 100")
+        return value
+
+    @field_validator("faceit_cache_ttl_seconds")
+    @classmethod
+    def validate_faceit_cache_ttl_seconds(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("FACEIT_CACHE_TTL_SECONDS must be >= 0")
+        return value
 
     @field_validator("cookie_domain", mode="before")
     @classmethod
