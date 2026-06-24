@@ -9,7 +9,7 @@ pip-audit==2.10.1
 psycopg[binary]==3.2.13
 pydantic-settings==2.6.1
 PyJWT==2.13.0
-pytest==9.1.0
+pytest==9.1.1
 pytest-cov==6.0.0
 python-multipart==0.0.32
 redis==5.2.1
