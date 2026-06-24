@@ -10,7 +10,7 @@ psycopg[binary]==3.2.13
 pydantic-settings==2.6.1
 PyJWT==2.13.0
 pytest==9.1.0
-pytest-cov==6.0.0
+pytest-cov==7.1.0
 python-multipart==0.0.32
 redis==5.2.1
 rq==2.0.0
