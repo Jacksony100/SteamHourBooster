@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Toaster, toast } from "sonner";
-import { ArrowLeft, Eye, Maximize2, Plus, RefreshCw, Search, Star, Swords, X } from "lucide-react";
+import { ArrowLeft, ArrowUp, Eye, Maximize2, Plus, RefreshCw, Search, Star, Swords, X } from "lucide-react";
 
 import { api } from "@/lib/api";
 
@@ -13,7 +13,7 @@ import { PlayerResult } from "./player-result";
 import { addRecent, clearRecent, getRecent } from "./recent";
 import { comparePermalink, copyText } from "./share";
 import type { FaceitCompare, FaceitResult } from "./types";
-import { WatchlistProvider } from "./watchlist-context";
+import { WatchlistProvider, useWatch } from "./watchlist-context";
 import { WatchlistTab } from "./watchlist-tab";
 
 type Mode = "single" | "compare" | "watch";
@@ -23,7 +23,9 @@ const INPUT_CLASS = "flex-1 rounded-xl border border-shb-border bg-white/5 px-4 
 
 function FaceitInner({ initialQuery }: { initialQuery?: string }) {
   const { t, lang, setLang } = useI18n();
+  const { items: watched } = useWatch();
   const [mode, setMode] = useState<Mode>("single");
+  const [showTop, setShowTop] = useState(false);
 
   const [input, setInput] = useState(initialQuery ?? "");
   const [result, setResult] = useState<FaceitResult | null>(null);
@@ -36,6 +38,7 @@ function FaceitInner({ initialQuery }: { initialQuery?: string }) {
   const [recent, setRecent] = useState<string[]>([]);
   const [me, setMe] = useState<string | null>(null);
   const [wide, setWide] = useState(false);
+  const [fetchedAt, setFetchedAt] = useState<string | null>(null);
   const didInit = useRef(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -51,6 +54,7 @@ function FaceitInner({ initialQuery }: { initialQuery?: string }) {
       const url = `/faceit/find?steam=${encodeURIComponent(q)}${opts?.refresh ? "&refresh=1" : ""}`;
       const data = await api<FaceitResult>(url);
       setResult(data);
+      setFetchedAt(new Date().toLocaleTimeString());
       setRecent(addRecent(q));
       try { history.replaceState(null, "", `?q=${encodeURIComponent(q)}`); } catch {}
       if (opts?.refresh) toast.success("Refreshed");
@@ -101,19 +105,35 @@ function FaceitInner({ initialQuery }: { initialQuery?: string }) {
     searchRef.current?.focus();
   }, [initialQuery, lookup, runCompareWith]);
 
-  // "/" focuses the search box; Esc clears it when focused.
+  // "/" focuses search; Esc clears it; 1/2/3 switch tabs (when not typing).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "/" && document.activeElement?.tagName !== "INPUT") {
+      const typing = document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "SELECT";
+      if (e.key === "/" && !typing) {
         e.preventDefault();
         searchRef.current?.focus();
       } else if (e.key === "Escape" && document.activeElement === searchRef.current) {
         setInput("");
+      } else if (!typing && (e.key === "1" || e.key === "2" || e.key === "3")) {
+        switchMode(({ "1": "single", "2": "compare", "3": "watch" } as const)[e.key]);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Floating scroll-to-top visibility.
+  useEffect(() => {
+    const onScroll = () => setShowTop(window.scrollY > 500);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Reflect the viewed player in the tab title.
+  useEffect(() => {
+    if (mode === "single" && result?.found && result.nickname) document.title = `${result.nickname} · FACEIT Finder`;
+    else document.title = "FACEIT Finder";
+  }, [mode, result]);
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -141,6 +161,16 @@ function FaceitInner({ initialQuery }: { initialQuery?: string }) {
   }
   function toggleWide() {
     setWide((w) => { try { localStorage.setItem("faceit_wide", w ? "0" : "1"); } catch {} return !w; });
+  }
+  function compareAll(nicks: string[]) {
+    if (nicks.length < 2) return;
+    const list = nicks.slice(0, 5);
+    setInputs(list.length >= 2 ? list : [...list, ""]);
+    runCompareWith(list);
+  }
+  function retry() {
+    if (mode === "compare") runCompareWith(inputs);
+    else if (input.trim()) lookup(input, { refresh: true });
   }
 
   const tab = (m: Mode, label: string, Icon: typeof Search) => (
@@ -174,7 +204,7 @@ function FaceitInner({ initialQuery }: { initialQuery?: string }) {
       <div className="mt-6 inline-flex rounded-xl border border-shb-border bg-white/5 p-1">
         {tab("single", t("tabLookup"), Search)}
         {tab("compare", t("tabCompare"), Swords)}
-        {tab("watch", t("tabWatch"), Eye)}
+        {tab("watch", watched.length ? `${t("tabWatch")} (${watched.length})` : t("tabWatch"), Eye)}
       </div>
 
       {mode === "single" && (
@@ -223,7 +253,14 @@ function FaceitInner({ initialQuery }: { initialQuery?: string }) {
         </form>
       )}
 
-      {error && <div className="mt-6 rounded-xl border border-shb-danger/30 bg-shb-danger/10 p-4 text-rose-50" role="alert">{error}</div>}
+      {error && (
+        <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border border-shb-danger/30 bg-shb-danger/10 p-4 text-rose-50" role="alert">
+          <span className="flex-1">{error}</span>
+          <button onClick={retry} className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 px-3 py-1.5 text-sm hover:bg-white/10">
+            <RefreshCw className="h-3.5 w-3.5" /> {lang === "ru" ? "Повторить" : "Retry"}
+          </button>
+        </div>
+      )}
 
       {mode === "single" && loading && !result && <ResultSkeleton />}
 
@@ -244,6 +281,7 @@ function FaceitInner({ initialQuery }: { initialQuery?: string }) {
       {mode === "single" && result?.found && (
         <div className="mt-8">
           <div className="mb-3 flex items-center justify-end gap-2">
+            {fetchedAt && <span className="mr-auto text-xs text-slate-500">{lang === "ru" ? "обновлено" : "updated"} {fetchedAt}</span>}
             {result.nickname && me !== result.nickname && (
               <button onClick={() => setAsMe(result.nickname!)} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1 text-xs text-slate-300 hover:border-amber-400/40 hover:text-amber-300">
                 <Star className="h-3.5 w-3.5" /> {lang === "ru" ? "Это я" : "This is me"}
@@ -257,7 +295,17 @@ function FaceitInner({ initialQuery }: { initialQuery?: string }) {
         </div>
       )}
       {mode === "compare" && compare && <div className="mt-8"><CompareView players={compare.players} /></div>}
-      {mode === "watch" && <WatchlistTab onPick={lookup} />}
+      {mode === "watch" && <WatchlistTab onPick={lookup} onCompareAll={compareAll} />}
+
+      {showTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-5 left-5 z-40 grid h-10 w-10 place-items-center rounded-full border border-shb-border bg-shb-bg-2/90 text-slate-200 shadow-glass backdrop-blur hover:text-white"
+          aria-label="Scroll to top"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </button>
+      )}
     </main>
   );
 }

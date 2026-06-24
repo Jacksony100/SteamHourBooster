@@ -65,7 +65,11 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>("ru");
   useEffect(() => {
     const saved = (typeof localStorage !== "undefined" && localStorage.getItem("faceit_lang")) as Lang | null;
-    if (saved === "ru" || saved === "en") setLangState(saved);
+    if (saved === "ru" || saved === "en") {
+      setLangState(saved);
+    } else if (typeof navigator !== "undefined" && !navigator.language.toLowerCase().startsWith("ru")) {
+      setLangState("en"); // first visit: default RU, but switch to EN for non-RU browsers
+    }
   }, []);
   const setLang = (l: Lang) => {
     setLangState(l);

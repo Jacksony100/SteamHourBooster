@@ -64,6 +64,46 @@ export function matchesToNextLevel(toNext: number | null | undefined): number | 
   return toNext == null ? null : Math.max(1, Math.ceil(toNext / 25));
 }
 
+/** Composite recent-form score 0–100 from win rate, K/D and ADR. */
+export function formScore(rf: { win_rate: number; kd_ratio: number | null; adr: number | null } | null | undefined): number | null {
+  if (!rf) return null;
+  const wr = Math.max(0, Math.min(100, rf.win_rate));
+  const kd = rf.kd_ratio == null ? 50 : Math.max(0, Math.min(100, (rf.kd_ratio / 2) * 100));
+  const adr = rf.adr == null ? 50 : Math.max(0, Math.min(100, (rf.adr / 110) * 100));
+  return Math.round(wr * 0.4 + kd * 0.35 + adr * 0.25);
+}
+
+export function hsLabel(hs: number | string | null | undefined): string | null {
+  const v = typeof hs === "string" ? Number(hs) : hs;
+  if (v == null || Number.isNaN(v)) return null;
+  if (v >= 55) return "Headshot machine";
+  if (v >= 45) return "Sharp aim";
+  if (v >= 35) return "Solid aim";
+  return "Spray & pray";
+}
+
+const REGIONS: Record<string, string> = { EU: "Europe", NA: "North America", SA: "South America", AS: "Asia", OCE: "Oceania", AF: "Africa", SEA: "SE Asia" };
+export function regionName(code: string | null | undefined): string {
+  if (!code) return "";
+  return REGIONS[code.toUpperCase()] ?? code;
+}
+
+/** Deterministic 2-colour gradient from a string (avatar fallback). */
+export function avatarGradient(seed: string | null | undefined): string {
+  let h = 0;
+  for (const ch of seed ?? "?") h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const a = h % 360;
+  const b = (a + 50) % 360;
+  return `linear-gradient(135deg, hsl(${a} 65% 45%), hsl(${b} 60% 35%))`;
+}
+
+export function levelEloRange(level: number | null | undefined): string | null {
+  if (!level || level < 1 || level > 10) return null;
+  const lo = LEVEL_MIN_ELO[level - 1];
+  const hi = level >= 10 ? null : LEVEL_MIN_ELO[level] - 1;
+  return hi == null ? `${lo}+` : `${lo}–${hi}`;
+}
+
 export function accountAgeYears(isoDate: string | null | undefined): number | null {
   if (!isoDate) return null;
   const then = new Date(isoDate).getTime();

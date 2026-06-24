@@ -1,12 +1,12 @@
 "use client";
 
 import { toast } from "sonner";
-import { Code2, Copy, Download, ExternalLink, Hash, Send, Share2 } from "lucide-react";
+import { Code2, Copy, Download, ExternalLink, FileText, Hash, Image as ImageIcon, Send, Share2, Smartphone } from "lucide-react";
 
 import { useI18n } from "./i18n";
 import {
-  copyText, downloadJson, embedHtml, embedMarkdown, externalLinks, permalinkFor,
-  telegramShareUrl, vkShareUrl, xShareUrl,
+  badgeUrlFor, copyText, downloadJson, embedHtml, embedMarkdown, externalLinks, nativeShare,
+  permalinkFor, statsSummary, telegramShareUrl, vkShareUrl, xShareUrl,
 } from "./share";
 import type { FaceitResult } from "./types";
 
@@ -35,6 +35,9 @@ export function ShareBar({ result }: { result: FaceitResult }) {
         <a className={BTN} href={telegramShareUrl(result)} target="_blank" rel="noopener noreferrer"><Send className="h-3.5 w-3.5" /> Telegram</a>
         <a className={BTN} href={vkShareUrl(result)} target="_blank" rel="noopener noreferrer"><Share2 className="h-3.5 w-3.5" /> VK</a>
         <button className={BTN} onClick={() => downloadJson(result)}><Download className="h-3.5 w-3.5" /> JSON</button>
+        <button className={BTN} onClick={() => copy(statsSummary(result), "Summary copied")}><FileText className="h-3.5 w-3.5" /> {lang === "ru" ? "Сводка" : "Summary"}</button>
+        <button className={BTN} onClick={async () => { if (!(await nativeShare(result))) { if (nick) copy(permalinkFor(nick), "Link copied"); } }}><Smartphone className="h-3.5 w-3.5" /> {lang === "ru" ? "Поделиться" : "Share"}</button>
+        {nick && <a className={BTN} href={badgeUrlFor(nick)} target="_blank" rel="noopener noreferrer"><ImageIcon className="h-3.5 w-3.5" /> {lang === "ru" ? "Бейдж" : "Badge"}</a>}
         {nick && <button className={BTN} onClick={() => copy(nick, "Nickname copied")}><Copy className="h-3.5 w-3.5" /> Nick</button>}
         {result.steamid64 && <button className={BTN} onClick={() => copy(result.steamid64!, "SteamID64 copied")}><Hash className="h-3.5 w-3.5" /> SteamID64</button>}
         {result.player_id && <button className={BTN} onClick={() => copy(result.player_id!, "FACEIT ID copied")}><Hash className="h-3.5 w-3.5" /> FACEIT ID</button>}

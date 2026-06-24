@@ -1,11 +1,13 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
+import { toast } from "sonner";
+import { Copy, ExternalLink, Table } from "lucide-react";
 
 import { EloCompareChart } from "./elo-chart";
 import { useI18n } from "./i18n";
 import { LevelBadge, SERIES_COLORS, flag, toNum } from "./lib";
 import { RadarChart } from "./radar-chart";
+import { copyText, downloadCsv } from "./share";
 import type { FaceitResult } from "./types";
 
 type Metric = { label: string; num: (p: FaceitResult) => number | null; show: (p: FaceitResult) => string };
@@ -26,7 +28,7 @@ function avg(values: (number | null)[]): number | null {
 }
 
 export function CompareView({ players }: { players: FaceitResult[] }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const found = players.filter((p) => p.found);
   const missing = players.filter((p) => !p.found);
 
@@ -55,6 +57,20 @@ export function CompareView({ players }: { players: FaceitResult[] }) {
   });
 
   const isStack = found.length >= 3;
+
+  function exportCsv() {
+    const header = ["Metric", ...found.map((p) => p.nickname ?? "?")];
+    const rows = METRICS.map((m) => [m.label, ...found.map((p) => m.show(p))]);
+    downloadCsv(`faceit-compare-${found.map((p) => p.nickname).join("-")}.csv`, [header, ...rows]);
+  }
+  async function copySummary() {
+    const lines = [
+      `FACEIT compare: ${found.map((p) => p.nickname).join(" vs ")}`,
+      ...found.map((p) => `${p.nickname}: L${p.skill_level ?? "?"} · ${p.faceit_elo ?? "?"} ELO · ${p.stats.kd_ratio ?? "—"} K/D · ${wins[found.indexOf(p)]}🏆`),
+    ];
+    const ok = await copyText(lines.join("\n"));
+    toast[ok ? "success" : "error"](ok ? "Summary copied" : "Copy failed");
+  }
 
   return (
     <div className="space-y-5">
@@ -112,6 +128,11 @@ export function CompareView({ players }: { players: FaceitResult[] }) {
           </div>
         </div>
       )}
+
+      <div className="flex flex-wrap justify-end gap-2">
+        <button onClick={copySummary} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-sm text-slate-200 hover:border-white/25"><Copy className="h-3.5 w-3.5" /> {lang === "ru" ? "Сводка" : "Summary"}</button>
+        <button onClick={exportCsv} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-sm text-slate-200 hover:border-white/25"><Table className="h-3.5 w-3.5" /> CSV</button>
+      </div>
 
       <div className="premium-card overflow-x-auto rounded-xl">
         <table className="w-full min-w-[420px] text-sm">

@@ -63,6 +63,44 @@ export function downloadJson(result: FaceitResult) {
   }
 }
 
+export function statsSummary(result: FaceitResult): string {
+  const s = result.stats;
+  return [
+    `${result.nickname} — FACEIT CS2`,
+    `Level ${result.skill_level ?? "?"} · ${result.faceit_elo ?? "?"} ELO`,
+    `${s.matches ?? "—"} matches · ${s.win_rate ?? "—"}% WR · ${s.kd_ratio ?? "—"} K/D · ${s.headshots ?? "—"}% HS`,
+    result.nickname ? permalinkFor(result.nickname) : "",
+  ].filter(Boolean).join("\n");
+}
+
+export function downloadCsv(filename: string, rows: (string | number | null)[][]) {
+  try {
+    const csv = rows.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Native share sheet (mobile); returns false if unavailable so callers can fall back to copy. */
+export async function nativeShare(result: FaceitResult): Promise<boolean> {
+  const url = result.nickname ? permalinkFor(result.nickname) : origin();
+  if (typeof navigator !== "undefined" && "share" in navigator) {
+    try {
+      await (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share({ title: "FACEIT Finder", text: statsSummary(result), url });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
 export async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);

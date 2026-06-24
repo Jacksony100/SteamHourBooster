@@ -2,6 +2,23 @@
 
 export type Bar = { value: number; win?: boolean | null };
 
+/** Tiny inline line chart (e.g. ELO trend next to the headline number). */
+export function Sparkline({ values, color = "#2e8bff", width = 96, height = 28 }: { values: number[]; color?: string; width?: number; height?: number }) {
+  if (values.length < 2) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const pts = values
+    .map((v, i) => `${((i / (values.length - 1)) * (width - 2) + 1).toFixed(1)},${(height - 2 - ((v - min) / span) * (height - 4)).toFixed(1)}`)
+    .join(" ");
+  const up = values[values.length - 1] >= values[0];
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} role="img" aria-label="ELO sparkline" className="inline-block align-middle">
+      <polyline points={pts} fill="none" stroke={up ? "#3DF5A0" : color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /** Per-match bar chart (e.g. K/D or ADR) with an average reference line. Pure SVG. */
 export function PerfBars({
   points,

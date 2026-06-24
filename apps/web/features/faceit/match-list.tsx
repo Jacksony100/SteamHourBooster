@@ -28,6 +28,7 @@ export function MatchList({ matches, playerId }: { matches: FaceitMatch[]; playe
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("recent");
   const [mapQuery, setMapQuery] = useState("");
+  const [limit, setLimit] = useState(0); // 0 = all
 
   const shown = useMemo(() => {
     let list = matches.filter((m) => (filter === "all" ? true : m.result === filter));
@@ -37,8 +38,8 @@ export function MatchList({ matches, playerId }: { matches: FaceitMatch[]; playe
     }
     if (sort === "kills") list = [...list].sort((a, b) => (toNum(b.kills) ?? 0) - (toNum(a.kills) ?? 0));
     else if (sort === "adr") list = [...list].sort((a, b) => (toNum(b.adr) ?? 0) - (toNum(a.adr) ?? 0));
-    return list;
-  }, [matches, filter, sort, mapQuery]);
+    return limit > 0 ? list.slice(0, limit) : list;
+  }, [matches, filter, sort, mapQuery, limit]);
 
   if (!matches.length) return null;
   const chrono = [...matches].reverse();
@@ -77,6 +78,12 @@ export function MatchList({ matches, playerId }: { matches: FaceitMatch[]; playe
             <option value="recent">Recent</option>
             <option value="kills">Kills</option>
             <option value="adr">ADR</option>
+          </select>
+          <select value={limit} onChange={(e) => setLimit(Number(e.target.value))} className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-200 outline-none" aria-label="Show count">
+            <option value={0}>All</option>
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
           </select>
           <div className="relative">
             <Search className="pointer-events-none absolute left-2 top-1.5 h-3.5 w-3.5 text-slate-500" />

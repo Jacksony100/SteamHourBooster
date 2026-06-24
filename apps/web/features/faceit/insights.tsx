@@ -94,6 +94,29 @@ export function NextLevel({ elo, level }: { elo: number | null; level: number | 
   );
 }
 
+export function LevelScale({ level }: { level: number | null }) {
+  if (!level) return null;
+  return (
+    <div className="premium-card rounded-xl p-4">
+      <div className="mb-2 text-xs uppercase tracking-wide text-slate-400">Skill level {level}/10</div>
+      <div className="flex gap-1">
+        {Array.from({ length: 10 }, (_, i) => {
+          const lv = i + 1;
+          const on = lv <= level;
+          return (
+            <div
+              key={lv}
+              className="h-3 flex-1 rounded-sm"
+              title={`Level ${lv}`}
+              style={{ background: on ? levelColor(lv) : "rgba(255,255,255,0.08)", opacity: lv === level ? 1 : on ? 0.55 : 1 }}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function MapInsights({ maps }: { maps: FaceitMap[] }) {
   const { t } = useI18n();
   const rated = maps
