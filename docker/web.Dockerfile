@@ -1,9 +1,11 @@
 FROM node:22-alpine AS deps
+ENV NODE_OPTIONS=--dns-result-order=ipv4first
 WORKDIR /app
 COPY apps/web/package.json apps/web/package-lock.json ./
-RUN npm ci
+RUN npm config set maxsockets=2 fetch-retries=6 fetch-retry-mintimeout=20000 fetch-retry-maxtimeout=180000 fetch-timeout=600000 && npm ci
 
 FROM node:22-alpine AS builder
+ENV NODE_OPTIONS=--dns-result-order=ipv4first
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_OUTPUT_MODE=standalone
@@ -12,6 +14,7 @@ COPY apps/web ./
 RUN npm run build
 
 FROM node:22-alpine AS runner
+ENV NODE_OPTIONS=--dns-result-order=ipv4first
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

@@ -17,7 +17,7 @@ key.key
 *.sqlite
 *.sqlite3
 instance
-logs
+/logs
 *.log
 
 apps/web/node_modules

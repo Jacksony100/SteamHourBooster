@@ -29,7 +29,7 @@ key.key
 
 # Logs
 *.log
-logs/
+/logs/
 
 # Node / Next.js
 node_modules/

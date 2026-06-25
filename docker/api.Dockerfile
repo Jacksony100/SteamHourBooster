@@ -1,7 +1,8 @@
 # --- builder: compile deps into an isolated venv (build tools stay out of runtime) ---
 FROM python:3.12-slim AS builder
 WORKDIR /srv/api
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
+RUN printf 'Acquire::ForceIPv4 "true";
+' > /etc/apt/apt.conf.d/99ipv4 && apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 COPY apps/api/requirements.txt .
