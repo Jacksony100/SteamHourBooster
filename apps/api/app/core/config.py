@@ -179,8 +179,11 @@ class Settings(BaseSettings):
                 raise ValueError("WEB_BASE_URL must not point to a local host in production")
             if not self.cookie_secure:
                 raise ValueError("COOKIE_SECURE=true is required in production")
-            if self.billing_provider == "mock":
-                raise ValueError("BILLING_PROVIDER=mock is forbidden in production")
+            if self.billing_provider == "mock" and not self.allow_demo_mode_in_production:
+                raise ValueError(
+                    "BILLING_PROVIDER=mock is forbidden in production "
+                    "(set ALLOW_DEMO_MODE_IN_PRODUCTION=true for a demo/beta deploy, or configure a real provider)"
+                )
             if self.billing_provider == "coinbase" and (not self.coinbase_api_key or not self.coinbase_webhook_secret):
                 raise ValueError("Coinbase credentials are required in production")
             if self.database_url.startswith("sqlite"):
