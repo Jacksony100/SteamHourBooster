@@ -37,6 +37,8 @@ class User(Base):
     email_verification_token_hash: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     email_verification_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255))
+    # Set when the account was created via "Sign in with Steam" (Steam OpenID).
+    steam_id: Mapped[str | None] = mapped_column(String(32), unique=True, nullable=True, index=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     banned: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

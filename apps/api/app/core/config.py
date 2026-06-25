@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     cookie_samesite: str = Field(default="lax", alias="COOKIE_SAMESITE")
     session_ttl_minutes: int = 60 * 24 * 7
     steam_api_key: str = Field(default="", alias="STEAM_API_KEY")
+    # "Sign in with Steam" (Steam OpenID 2.0). No API key required for auth itself;
+    # the key is only used to enrich the persona name. Returns to WEB_BASE_URL.
+    steam_login_enabled: bool = Field(default=True, alias="STEAM_LOGIN_ENABLED")
     steam_test_mode: bool = Field(default=True, alias="STEAM_TEST_MODE")
     steam_integration_mode: str = Field(default="demo", alias="STEAM_INTEGRATION_MODE")
     steam_official_linking_enabled: bool = Field(default=False, alias="STEAM_OFFICIAL_LINKING_ENABLED")

@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" font-family="Segoe UI, Inter, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#05070d"/>
+      <stop offset="100%" stop-color="#0b1424"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5ba6ff"/>
+      <stop offset="55%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#3df5a0"/>
+    </linearGradient>
+    <linearGradient id="elo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2e8bff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#2e8bff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="340" rx="20" fill="url(#bg)"/>
+  <g stroke="#ffffff" stroke-opacity="0.04">
+    <path d="M0 85H1200M0 170H1200M0 255H1200"/>
+    <path d="M300 0V340M600 0V340M900 0V340"/>
+  </g>
+
+  <g transform="translate(64,70)">
+    <rect width="64" height="64" rx="16" fill="#2e8bff" fill-opacity="0.15" stroke="#2e8bff" stroke-opacity="0.4"/>
+    <text x="32" y="42" text-anchor="middle" font-size="26" font-weight="800" fill="#9ecbff">DP</text>
+    <text x="84" y="28" font-size="40" font-weight="800" fill="url(#brand)">DeckPilot</text>
+    <text x="86" y="58" font-size="18" fill="#9daac2">FACEIT Finder · Steam login · transparent Steam account hub</text>
+
+    <g transform="translate(86,96)" font-size="14" font-weight="600">
+      <g><rect width="150" height="34" rx="10" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.1"/><text x="16" y="22" fill="#cfe0ff">CS2 stats &amp; ELO</text></g>
+      <g transform="translate(162,0)"><rect width="150" height="34" rx="10" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.1"/><text x="16" y="22" fill="#cfe0ff">Compare up to 5</text></g>
+      <g transform="translate(324,0)"><rect width="170" height="34" rx="10" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.1"/><text x="16" y="22" fill="#cfe0ff">Sign in with Steam</text></g>
+    </g>
+  </g>
+
+  <!-- right: level badge + ELO trend card -->
+  <g transform="translate(820,70)">
+    <rect width="316" height="200" rx="16" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.12"/>
+    <rect x="20" y="20" width="64" height="64" rx="14" fill="#FE1F00" fill-opacity="0.13" stroke="#FE1F00" stroke-width="2"/>
+    <text x="52" y="62" text-anchor="middle" font-size="30" font-weight="900" fill="#FE1F00">10</text>
+    <text x="100" y="40" font-size="14" fill="#9daac2">FACEIT level · ELO</text>
+    <text x="100" y="72" font-size="30" font-weight="800" fill="#ffffff">2 548</text>
+    <text x="250" y="72" font-size="14" font-weight="700" fill="#3DF5A0">▲ 138</text>
+    <path d="M22 168 L60 158 L98 162 L136 146 L174 150 L212 132 L250 138 L294 120 L294 180 L22 180 Z" fill="url(#elo)"/>
+    <path d="M22 168 L60 158 L98 162 L136 146 L174 150 L212 132 L250 138 L294 120" fill="none" stroke="#2e8bff" stroke-width="2.5" stroke-linejoin="round"/>
+    <circle cx="294" cy="120" r="4.5" fill="#2e8bff" stroke="#05070d" stroke-width="2"/>
+  </g>
+</svg>

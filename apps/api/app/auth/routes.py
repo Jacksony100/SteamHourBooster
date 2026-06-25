@@ -1,9 +1,11 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.audit.service import write_audit
+from app.auth import steam_openid
 from app.auth.schemas import (
     AuthResponse,
     EmailVerificationConfirmRequest,
@@ -22,6 +24,7 @@ from app.auth.service import (
     consume_password_reset_token,
     create_web_session,
     delete_user_account,
+    get_or_create_steam_user,
     issue_email_verification_token,
     public_user,
     request_password_reset,
@@ -30,6 +33,7 @@ from app.auth.service import (
     user_data_export,
 )
 from app.billing.service import ensure_trial_subscription
+from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.deps import clear_auth_cookies, current_user, require_csrf, set_auth_cookies
 from app.core.models import User
@@ -92,6 +96,37 @@ def login(payload: LoginRequest, response: Response, request: Request, db: Sessi
     db.refresh(user)
     write_audit(db, "auth.login", "user", user.id, user)
     return _auth_response(response, user, db, request)
+
+
+@router.get("/steam/login", dependencies=[Depends(rate_limit("steam_login", 30, 60))])
+def steam_login_redirect():
+    if not get_settings().steam_login_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Steam login disabled")
+    return RedirectResponse(steam_openid.build_login_url(), status_code=302)
+
+
+@router.get("/steam/callback")
+def steam_callback(request: Request, db: Session = Depends(get_db)):
+    settings = get_settings()
+    web = settings.web_base_url.rstrip("/")
+    if not settings.steam_login_enabled:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Steam login disabled")
+
+    steam_id = steam_openid.verify_steam_response(dict(request.query_params))
+    if not steam_id:
+        return RedirectResponse(f"{web}/login?error=steam", status_code=302)
+
+    user = get_or_create_steam_user(db, steam_id, request, persona=steam_openid.fetch_persona(steam_id))
+    if user.banned:
+        return RedirectResponse(f"{web}/login?error=banned", status_code=302)
+    ensure_trial_subscription(db, user)
+
+    redirect = RedirectResponse(f"{web}/dashboard", status_code=302)
+    csrf_token = new_csrf_token()
+    session_id = create_web_session(db, user, request)
+    set_auth_cookies(redirect, create_session_token(user.id, session_id), csrf_token)
+    write_audit(db, "auth.steam_login", "user", user.id, user)
+    return redirect
 
 
 @router.post("/logout", dependencies=[Depends(require_csrf)])

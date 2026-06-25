@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" width="1200" height="780" font-family="Segoe UI, Inter, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#05070d"/><stop offset="100%" stop-color="#080b12"/></linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.085"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.035"/></linearGradient>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#5ba6ff"/><stop offset="55%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#3df5a0"/></linearGradient>
+    <linearGradient id="elofill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2e8bff" stop-opacity="0.34"/><stop offset="100%" stop-color="#2e8bff" stop-opacity="0"/></linearGradient>
+  </defs>
+  <rect width="1200" height="780" fill="url(#pg)"/>
+
+  <!-- title -->
+  <text x="48" y="56" font-size="34" font-weight="800" fill="#eaf0fa">FACEIT <tspan fill="url(#grad)">Finder</tspan></text>
+  <text x="48" y="84" font-size="15" fill="#9daac2">Full CS2 stats from a FACEIT nickname, Steam link or SteamID64 — no login</text>
+
+  <!-- search bar -->
+  <g transform="translate(48,108)">
+    <rect width="900" height="48" rx="12" fill="#ffffff" fill-opacity="0.05" stroke="#ffffff" stroke-opacity="0.12"/>
+    <text x="18" y="30" font-size="15" fill="#7c8ba5">FACEIT nickname · steamcommunity.com/id/... · 7656119...</text>
+    <rect x="916" y="0" width="120" height="48" rx="12" fill="#2e8bff"/>
+    <text x="976" y="30" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">Find</text>
+  </g>
+
+  <!-- profile header card -->
+  <g transform="translate(48,180)">
+    <rect width="1104" height="118" rx="18" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.12"/>
+    <rect x="24" y="23" width="72" height="72" rx="14" fill="#2e8bff" fill-opacity="0.18" stroke="#ffffff" stroke-opacity="0.1"/>
+    <text x="60" y="68" text-anchor="middle" font-size="30" font-weight="800" fill="#9ecbff">d</text>
+    <text x="116" y="52" font-size="24" font-weight="800" fill="#ffffff">donk <tspan font-size="18">🇷🇺</tspan></text>
+    <text x="116" y="78" font-size="15" fill="#9daac2">Region EU · 2962 ELO</text>
+    <rect x="116" y="90" width="150" height="18" rx="5"/>
+    <text x="116" y="104" font-size="12" fill="#7c8ba5">Last match 2d ago</text>
+    <!-- level badge -->
+    <rect x="1008" y="27" width="64" height="64" rx="16" fill="#FE1F00" fill-opacity="0.13" stroke="#FE1F00" stroke-width="2"/>
+    <text x="1040" y="68" text-anchor="middle" font-size="28" font-weight="900" fill="#FE1F00">10</text>
+  </g>
+
+  <!-- stat tiles -->
+  <g transform="translate(48,318)" font-family="Segoe UI, Inter, sans-serif">
+    <g><rect width="264" height="86" rx="14" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.1"/><text x="132" y="46" text-anchor="middle" font-size="26" font-weight="800" fill="#ffffff">4165</text><text x="132" y="68" text-anchor="middle" font-size="12" fill="#9daac2" letter-spacing="1">MATCHES</text></g>
+    <g transform="translate(280,0)"><rect width="264" height="86" rx="14" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.1"/><text x="132" y="46" text-anchor="middle" font-size="26" font-weight="800" fill="#ffffff">52%</text><text x="132" y="68" text-anchor="middle" font-size="12" fill="#9daac2" letter-spacing="1">WIN RATE</text></g>
+    <g transform="translate(560,0)"><rect width="264" height="86" rx="14" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.1"/><text x="132" y="46" text-anchor="middle" font-size="26" font-weight="800" fill="#ffffff">1.11</text><text x="132" y="68" text-anchor="middle" font-size="12" fill="#9daac2" letter-spacing="1">K/D</text></g>
+    <g transform="translate(840,0)"><rect width="264" height="86" rx="14" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.1"/><text x="132" y="46" text-anchor="middle" font-size="26" font-weight="800" fill="#ffffff">59%</text><text x="132" y="68" text-anchor="middle" font-size="12" fill="#9daac2" letter-spacing="1">HEADSHOTS</text></g>
+  </g>
+
+  <!-- ELO trend card -->
+  <g transform="translate(48,426)">
+    <rect width="1104" height="190" rx="16" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.12"/>
+    <text x="24" y="36" font-size="13" fill="#9daac2" letter-spacing="1">ELO TREND · LAST 25</text>
+    <text x="990" y="36" font-size="20" font-weight="800" fill="#ffffff">2962</text>
+    <rect x="1052" y="20" width="40" height="20" rx="6" fill="#3DF5A0" fill-opacity="0.14"/>
+    <text x="1072" y="35" text-anchor="middle" font-size="12" font-weight="700" fill="#3DF5A0">▲</text>
+    <path d="M30 150 L120 138 L210 144 L300 120 L390 128 L480 100 L570 112 L660 86 L750 96 L840 70 L930 80 L1074 58 L1074 168 L30 168 Z" fill="url(#elofill)"/>
+    <path d="M30 150 L120 138 L210 144 L300 120 L390 128 L480 100 L570 112 L660 86 L750 96 L840 70 L930 80 L1074 58" fill="none" stroke="#2e8bff" stroke-width="2.5" stroke-linejoin="round"/>
+    <circle cx="1074" cy="58" r="5" fill="#2e8bff" stroke="#05070d" stroke-width="2"/>
+  </g>
+
+  <!-- recent matches -->
+  <g transform="translate(48,640)" font-size="14">
+    <text x="0" y="-6" font-size="13" fill="#9daac2" letter-spacing="1">LAST MATCHES</text>
+    <g>
+      <rect width="1104" height="36" rx="9" fill="#ffffff" fill-opacity="0.03" stroke="#ffffff" stroke-opacity="0.06"/>
+      <rect x="10" y="8" width="20" height="20" rx="5" fill="#3DF5A0" fill-opacity="0.15"/><text x="20" y="23" text-anchor="middle" font-size="11" font-weight="800" fill="#3DF5A0">W</text>
+      <text x="44" y="24" font-weight="600" fill="#ffffff">Mirage</text><text x="180" y="24" fill="#9daac2">13 / 9</text>
+      <text x="1094" y="24" text-anchor="end" fill="#cfe0ff">28/16 (1.75)</text>
+    </g>
+    <g transform="translate(0,44)">
+      <rect width="1104" height="36" rx="9" fill="#ffffff" fill-opacity="0.03" stroke="#ffffff" stroke-opacity="0.06"/>
+      <rect x="10" y="8" width="20" height="20" rx="5" fill="#FF5C7A" fill-opacity="0.15"/><text x="20" y="23" text-anchor="middle" font-size="11" font-weight="800" fill="#FF5C7A">L</text>
+      <text x="44" y="24" font-weight="600" fill="#ffffff">Nuke</text><text x="180" y="24" fill="#9daac2">10 / 13</text>
+      <text x="1094" y="24" text-anchor="end" fill="#cfe0ff">17/20 (0.85)</text>
+    </g>
+  </g>
+</svg>

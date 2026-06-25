@@ -9,10 +9,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/components/language-provider";
 import { api } from "@/lib/api";
+import { SteamLoginButton } from "@/features/auth/steam-login-button";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -92,6 +93,13 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           </Button>
         )}
       </form>
+
+      <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-slate-500">
+        <span className="h-px flex-1 bg-shb-border" />
+        {language === "ru" ? "или" : "or"}
+        <span className="h-px flex-1 bg-shb-border" />
+      </div>
+      <SteamLoginButton className="w-full" />
     </Card>
   );
 }

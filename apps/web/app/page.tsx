@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, ArrowRight, BarChart3, CreditCard, Gamepad2, KeyRound, Layers3, ShieldCheck } from "lucide-react";
+import { Activity, ArrowRight, BarChart3, CreditCard, Gamepad2, KeyRound, Layers3, LineChart, Search, ShieldCheck, Trophy, Users } from "lucide-react";
 
 import { useLanguage } from "@/components/language-provider";
 import { LegalFooter } from "@/components/legal-footer";
@@ -9,13 +9,62 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LanguageToggle } from "@/components/ui-kit/language-toggle";
 import { ThemeToggle } from "@/components/ui-kit/theme-toggle";
+import { SteamLoginButton } from "@/features/auth/steam-login-button";
 import { SystemModeBanner } from "@/features/system/system-mode-banner";
 import { product } from "@/lib/product";
 
 const featureIcons = [KeyRound, Activity, Gamepad2, CreditCard, ShieldCheck, Layers3];
 
+const COPY = {
+  ru: {
+    steamHint: "Или войдите через Steam — без пароля",
+    faceitEyebrow: "Без входа",
+    faceitTitle: "FACEIT Finder",
+    faceitBody:
+      "Полная статистика CS2 по нику FACEIT, ссылке Steam или SteamID64: уровень, ELO и тренд ELO, разбивка по картам, последние матчи с K/D, тиммейты, форма и продвинутые метрики — плюс сравнение до 5 игроков.",
+    faceitCta: "Открыть FACEIT Finder",
+    faceitBullets: ["Уровень, ELO и тренд", "Последние 20 матчей + scoreboard", "Сравнение и радар скилла"],
+    howTitle: "Как это работает",
+    steps: [
+      ["Войдите", "Через Steam в один клик или логин/пароль."],
+      ["Подключите аккаунты", "Только свои Steam-аккаунты, с Steam Guard — всё под вашим контролем."],
+      ["Управляйте", "Сессии, игры, статистика и FACEIT — в одной панели."],
+    ],
+    faqTitle: "Частые вопросы",
+    faq: [
+      ["Это безопасно?", "Да. Только аккаунты, которыми вы владеете, ваши учётные данные и Steam Guard. Никакого обхода защит, эмуляции или скрытности."],
+      ["Нужен ли вход для FACEIT Finder?", "Нет — поиск статистики FACEIT работает без входа."],
+      ["Что даёт вход через Steam?", "Быстрый вход без пароля: аккаунт создаётся и привязывается по вашему SteamID."],
+      ["Можно отменить подписку?", "Да, в любой момент — доступ сохраняется до конца оплаченного периода."],
+    ],
+  },
+  en: {
+    steamHint: "Or sign in with Steam — no password",
+    faceitEyebrow: "No login",
+    faceitTitle: "FACEIT Finder",
+    faceitBody:
+      "Full CS2 stats from a FACEIT nickname, Steam link or SteamID64: level, ELO and ELO trend, per-map breakdown, recent matches with K/D, teammates, form and advanced metrics — plus head-to-head compare of up to 5 players.",
+    faceitCta: "Open FACEIT Finder",
+    faceitBullets: ["Level, ELO & trend", "Last 20 matches + scoreboard", "Compare & skill radar"],
+    howTitle: "How it works",
+    steps: [
+      ["Sign in", "One click with Steam, or username / password."],
+      ["Connect accounts", "Only your own Steam accounts, with Steam Guard — fully under your control."],
+      ["Manage", "Sessions, games, stats and FACEIT — in one dashboard."],
+    ],
+    faqTitle: "FAQ",
+    faq: [
+      ["Is it safe?", "Yes. Only accounts you own, your own credentials and Steam Guard. No evasion, spoofing or stealth behavior."],
+      ["Do I need to log in for FACEIT Finder?", "No — the FACEIT stats lookup works without an account."],
+      ["What does Sign in with Steam do?", "Passwordless login: your account is created and linked by your SteamID."],
+      ["Can I cancel my subscription?", "Yes, anytime — access stays until the end of the paid period."],
+    ],
+  },
+} as const;
+
 export default function HomePage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const c = COPY[language === "ru" ? "ru" : "en"];
 
   return (
     <main className="min-h-screen overflow-hidden">
@@ -63,6 +112,10 @@ export default function HomePage() {
               <Link href="#pricing">{t.landing.demoCta}</Link>
             </Button>
           </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <SteamLoginButton />
+            <span className="text-sm text-slate-400">{c.steamHint}</span>
+          </div>
         </div>
 
         <div className="relative">
@@ -102,6 +155,48 @@ export default function HomePage() {
         })}
       </section>
 
+      <section className="mx-auto w-full max-w-7xl px-5 pb-16">
+        <Card className="interactive-card overflow-hidden">
+          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+            <div>
+              <div className="w-fit rounded-full border border-sky-300/20 bg-sky-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-sky-200">{c.faceitEyebrow}</div>
+              <h2 className="mt-3 text-3xl font-black">{c.faceitTitle}</h2>
+              <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">{c.faceitBody}</p>
+              <div className="mt-5">
+                <Button asChild>
+                  <Link href="/faceit">
+                    <Search className="h-4 w-4" />
+                    {c.faceitCta}
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+            <div className="grid gap-3">
+              {[Trophy, LineChart, Users].map((Icon, i) => (
+                <div key={i} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
+                  <Icon className="h-5 w-5 shrink-0 text-sky-200" />
+                  <span className="text-sm font-semibold text-slate-200">{c.faceitBullets[i]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-5 pb-16">
+        <h2 className="text-3xl font-black">{c.howTitle}</h2>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          {c.steps.map(([title, body], i) => (
+            <Card key={title} className="interactive-card">
+              <div className="grid h-9 w-9 place-items-center rounded-xl border border-sky-300/30 bg-sky-300/15 text-lg font-black text-sky-200">{i + 1}</div>
+              <div className="mt-4 text-lg font-bold">{title}</div>
+              <p className="mt-2 text-sm leading-7 text-slate-400">{body}</p>
+            </Card>
+          ))}
+        </div>
+      </section>
+
       <section id="pricing" className="mx-auto grid w-full max-w-7xl gap-6 px-5 pb-20 lg:grid-cols-[0.8fr_1.2fr]">
         <div>
           <h2 className="text-3xl font-black">{t.landing.pricingTitle}</h2>
@@ -117,6 +212,18 @@ export default function HomePage() {
               <div className="text-sm font-semibold text-slate-400">{name}</div>
               <div className="mt-3 text-3xl font-black">{price}</div>
               <div className="mt-2 text-sm text-slate-400">{limit}</div>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-5 pb-20">
+        <h2 className="text-3xl font-black">{c.faqTitle}</h2>
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          {c.faq.map(([q, a]) => (
+            <Card key={q} className="interactive-card">
+              <div className="text-lg font-bold">{q}</div>
+              <p className="mt-2 text-sm leading-7 text-slate-400">{a}</p>
             </Card>
           ))}
         </div>

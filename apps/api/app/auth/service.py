@@ -63,6 +63,36 @@ def public_user(user: User) -> dict[str, Any]:
     }
 
 
+def _unique_username(db: Session, base: str) -> str:
+    candidate = base[:60] or "steam_user"
+    n = 1
+    while db.query(User).filter(User.username == candidate).one_or_none() is not None:
+        n += 1
+        suffix = f"_{n}"
+        candidate = (base[: 60 - len(suffix)] or "steam_user") + suffix
+    return candidate
+
+
+def get_or_create_steam_user(db: Session, steam_id: str, request: Request | None = None, persona: str | None = None) -> User:
+    """Find the user linked to this SteamID64, or create a Steam-only account."""
+    user = db.query(User).filter(User.steam_id == steam_id).one_or_none()
+    if user is None:
+        cleaned = "".join(ch for ch in (persona or "") if ch.isprintable()).strip()
+        user = User(
+            username=_unique_username(db, cleaned or f"steam_{steam_id}"),
+            steam_id=steam_id,
+            password_hash=hash_password(token_urlsafe(32)),  # Steam-only: no usable password
+        )
+        db.add(user)
+        db.flush()
+    user.last_seen_at = now_utc()
+    if request is not None and request.client:
+        user.last_ip = request.client.host
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def create_web_session(db: Session, user: User, request: Request | None = None) -> str:
     session_id = new_session_id()
     entry = UserSession(

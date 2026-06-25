@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" font-family="Segoe UI, Inter, system-ui, sans-serif">
+  <defs>
+    <linearGradient id="cpg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#05070d"/><stop offset="100%" stop-color="#080b12"/></linearGradient>
+    <linearGradient id="ccard" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.085"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0.035"/></linearGradient>
+    <linearGradient id="cgrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#5ba6ff"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient>
+  </defs>
+  <rect width="1200" height="600" fill="url(#cpg)"/>
+  <text x="48" y="52" font-size="30" font-weight="800" fill="#eaf0fa">Head-to-head <tspan fill="url(#cgrad)">compare</tspan></text>
+
+  <!-- versus header -->
+  <g transform="translate(48,80)">
+    <rect width="1104" height="92" rx="16" fill="url(#ccard)" stroke="#ffffff" stroke-opacity="0.12"/>
+    <!-- player A -->
+    <rect x="20" y="22" width="48" height="48" rx="12" fill="#2e8bff" fill-opacity="0.15" stroke="#2e8bff" stroke-width="2"/>
+    <text x="44" y="54" text-anchor="middle" font-size="22" font-weight="800" fill="#9ecbff">s</text>
+    <text x="80" y="42" font-size="18" font-weight="700" fill="#ffffff">s1mple 🇺🇦</text>
+    <text x="80" y="64" font-size="13" fill="#9daac2">2548 ELO · 4🏆</text>
+    <!-- VS -->
+    <text x="552" y="44" text-anchor="middle" font-size="16" font-weight="900" fill="#5f6b80">VS</text>
+    <g transform="translate(512,54)" font-size="12" font-weight="700"><rect width="34" height="20" rx="5" fill="#2e8bff" fill-opacity="0.15"/><text x="17" y="14" text-anchor="middle" fill="#2e8bff">4</text><rect x="44" width="34" height="20" rx="5" fill="#8b5cf6" fill-opacity="0.15"/><text x="61" y="14" text-anchor="middle" fill="#8b5cf6">3</text></g>
+    <!-- player B -->
+    <rect x="1036" y="22" width="48" height="48" rx="12" fill="#8b5cf6" fill-opacity="0.15" stroke="#8b5cf6" stroke-width="2"/>
+    <text x="1060" y="54" text-anchor="middle" font-size="22" font-weight="800" fill="#c4b5fd">d</text>
+    <text x="1020" y="42" text-anchor="end" font-size="18" font-weight="700" fill="#ffffff">🇷🇺 donk</text>
+    <text x="1020" y="64" text-anchor="end" font-size="13" fill="#9daac2">2470 ELO · 3🏆</text>
+  </g>
+
+  <!-- radar -->
+  <g transform="translate(300,300)">
+    <polygon points="0,-150 130,-75 130,75 0,150 -130,75 -130,-75" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+    <polygon points="0,-100 87,-50 87,50 0,100 -87,50 -87,-50" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+    <polygon points="0,-50 43,-25 43,25 0,50 -43,25 -43,-25" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+    <polygon points="0,-135 118,-40 92,72 0,60 -78,64 -110,-58" fill="#2e8bff" fill-opacity="0.16" stroke="#2e8bff" stroke-width="2"/>
+    <polygon points="0,-100 86,-66 110,60 0,118 -96,52 -70,-78" fill="#8b5cf6" fill-opacity="0.16" stroke="#8b5cf6" stroke-width="2"/>
+    <text x="0" y="-162" text-anchor="middle" font-size="12" fill="#9daac2">Aim</text>
+    <text x="150" y="-72" font-size="12" fill="#9daac2">Damage</text>
+    <text x="150" y="86" font-size="12" fill="#9daac2">HS%</text>
+    <text x="0" y="172" text-anchor="middle" font-size="12" fill="#9daac2">Entry</text>
+    <text x="-150" y="86" text-anchor="end" font-size="12" fill="#9daac2">Clutch</text>
+    <text x="-150" y="-72" text-anchor="end" font-size="12" fill="#9daac2">Utility</text>
+  </g>
+
+  <!-- diff table -->
+  <g transform="translate(640,232)" font-size="16">
+    <rect width="512" height="300" rx="16" fill="url(#ccard)" stroke="#ffffff" stroke-opacity="0.12"/>
+    <g transform="translate(0,18)">
+      <g><text x="40" y="30" text-anchor="middle" font-weight="800" fill="#2e8bff">2548</text><text x="256" y="30" text-anchor="middle" font-size="12" fill="#5f6b80" letter-spacing="1">ELO</text><text x="472" y="30" text-anchor="middle" fill="#9daac2">2470</text></g>
+      <line x1="20" y1="46" x2="492" y2="46" stroke="#ffffff" stroke-opacity="0.06"/>
+      <g transform="translate(0,46)"><text x="40" y="30" text-anchor="middle" fill="#9daac2">10</text><text x="256" y="30" text-anchor="middle" font-size="12" fill="#5f6b80" letter-spacing="1">LEVEL</text><text x="472" y="30" text-anchor="middle" fill="#9daac2">10</text></g>
+      <line x1="20" y1="92" x2="492" y2="92" stroke="#ffffff" stroke-opacity="0.06"/>
+      <g transform="translate(0,92)"><text x="40" y="30" text-anchor="middle" font-weight="800" fill="#2e8bff">62%</text><text x="256" y="30" text-anchor="middle" font-size="12" fill="#5f6b80" letter-spacing="1">WIN RATE</text><text x="472" y="30" text-anchor="middle" fill="#9daac2">58%</text></g>
+      <line x1="20" y1="138" x2="492" y2="138" stroke="#ffffff" stroke-opacity="0.06"/>
+      <g transform="translate(0,138)"><text x="40" y="30" text-anchor="middle" fill="#9daac2">1.18</text><text x="256" y="30" text-anchor="middle" font-size="12" fill="#5f6b80" letter-spacing="1">K/D</text><text x="472" y="30" text-anchor="middle" font-weight="800" fill="#8b5cf6">1.24</text></g>
+      <line x1="20" y1="184" x2="492" y2="184" stroke="#ffffff" stroke-opacity="0.06"/>
+      <g transform="translate(0,184)"><text x="40" y="30" text-anchor="middle" fill="#9daac2">49%</text><text x="256" y="30" text-anchor="middle" font-size="12" fill="#5f6b80" letter-spacing="1">HS%</text><text x="472" y="30" text-anchor="middle" font-weight="800" fill="#8b5cf6">56%</text></g>
+      <line x1="20" y1="230" x2="492" y2="230" stroke="#ffffff" stroke-opacity="0.06"/>
+      <g transform="translate(0,230)"><text x="40" y="30" text-anchor="middle" font-weight="800" fill="#2e8bff">19.4</text><text x="256" y="30" text-anchor="middle" font-size="12" fill="#5f6b80" letter-spacing="1">ADR</text><text x="472" y="30" text-anchor="middle" fill="#9daac2">21.1</text></g>
+    </g>
+  </g>
+</svg>

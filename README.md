@@ -4,7 +4,9 @@
 [![CI](https://img.shields.io/badge/ci-github_actions-1f2937.svg)](.github/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-TBD-yellow.svg)](#license)
 
-DeckPilot is a dark-first SaaS dashboard for transparent management of user-owned Steam accounts, selected games, activity sessions, subscriptions, billing, and admin audit workflows.
+![DeckPilot](docs/assets/banner.svg)
+
+DeckPilot is a dark-first SaaS dashboard for transparent management of user-owned Steam accounts, selected games, activity sessions, subscriptions, billing, and admin audit workflows — plus a public, no-login **FACEIT Finder** for CS2 stats and **Sign in with Steam**.
 
 The legacy Flask prototype is preserved under [legacy/flask](legacy/flask). The active product is the SaaS 2.0 rewrite in `apps/`.
 
@@ -14,6 +16,8 @@ Current status: `2.0.0-beta.1` release candidate for demo/closed-beta evaluation
 
 ## Features
 
+- **FACEIT Finder** (public, no login): full CS2 stats from a FACEIT nickname, Steam link or SteamID64 — level, ELO and animated ELO trend, per-map breakdown, recent matches with K/D and a lazy scoreboard, teammates, recent form, skill radar, advanced metrics, and head-to-head compare of up to 5 players. Shareable permalinks, OG cards, and an embeddable SVG badge.
+- **Sign in with Steam** (Steam OpenID 2.0, passwordless) alongside username/password auth.
 - Secure auth with hashed passwords, HTTP-only session cookies, server-side session revocation, CSRF protection, password reset primitives, email verification state, and rate limits.
 - Encrypted Steam account credentials with owner-only access checks.
 - Transparent session lifecycle via `SessionManager`, worker queue, heartbeats, and event logs.
@@ -22,6 +26,16 @@ Current status: `2.0.0-beta.1` release candidate for demo/closed-beta evaluation
 - Admin control center with overview metrics, user search/filtering, detail drawer, payments, subscription changes, force-stop sessions, and audit logs.
 - Premium Next.js dashboard UI with dark glass cards, responsive layout, loading states, toasts, drawers, modals, and command palette.
 - Docker Compose deployment with FastAPI, Next.js, PostgreSQL, Redis, and worker services.
+
+## Screenshots
+
+### FACEIT Finder — full CS2 stats, no login
+
+![FACEIT Finder](docs/assets/faceit.svg)
+
+### Head-to-head compare (up to 5 players) with a skill radar
+
+![FACEIT compare](docs/assets/compare.svg)
 
 ## Safety Scope
 
@@ -109,6 +123,8 @@ Core variables:
 | `SESSION_COOKIE_NAME` / `CSRF_COOKIE_NAME` | Defaults to `deckpilot_session` / `deckpilot_csrf`. |
 | `COOKIE_SECURE` / `COOKIE_SAMESITE` | Production cookie safety controls. |
 | `STEAM_TEST_MODE` | Uses safe mock adapters when `true`. |
+| `STEAM_LOGIN_ENABLED` | Enables "Sign in with Steam" (Steam OpenID); returns to `WEB_BASE_URL`. |
+| `STEAM_API_KEY` | Optional; enriches Steam persona name and FACEIT Finder Steam panel. |
 | `STEAM_INTEGRATION_MODE` | `demo` or `official`; release default is safe demo mode. |
 | `STEAM_OFFICIAL_LINKING_ENABLED` | Enables official linking only after reviewed configuration exists. |
 | `ALLOW_DEMO_MODE_IN_PRODUCTION` | Required when production is intentionally demo/beta. |
