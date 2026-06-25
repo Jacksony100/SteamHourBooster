@@ -4,7 +4,6 @@ import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Command,
   Gamepad2,
   LayoutDashboard,
   LifeBuoy,
@@ -17,14 +16,12 @@ import {
   WalletCards,
   type LucideIcon
 } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 
 import { useLanguage } from "@/components/language-provider";
 import { Button } from "@/components/ui/button";
 import { LanguageToggle } from "@/components/ui-kit/language-toggle";
 import { ThemeToggle } from "@/components/ui-kit/theme-toggle";
-import { CommandPalette } from "@/features/command-palette";
 import { SystemModeBanner } from "@/features/system/system-mode-banner";
 import { api } from "@/lib/api";
 import { product } from "@/lib/product";
@@ -33,7 +30,6 @@ import type { CurrentUser } from "@/lib/server-auth";
 export function AppShell({ children, currentUser }: { children: React.ReactNode; currentUser: CurrentUser }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [commandOpen, setCommandOpen] = useState(false);
   const { t } = useLanguage();
 
   const allNav: Array<{ href: Route; label: string; icon: LucideIcon; adminOnly?: boolean }> = [
@@ -96,10 +92,6 @@ export function AppShell({ children, currentUser }: { children: React.ReactNode;
           <div className="flex flex-wrap items-center gap-2">
             <ThemeToggle />
             <LanguageToggle />
-            <Button variant="ghost" onClick={() => setCommandOpen(true)}>
-              <Command className="h-4 w-4" />
-              {t.shell.command}
-            </Button>
             <Button variant="danger" onClick={logout}>
               <LogOut className="h-4 w-4" />
               {t.shell.logout}
@@ -109,7 +101,6 @@ export function AppShell({ children, currentUser }: { children: React.ReactNode;
         <SystemModeBanner />
         {children}
       </main>
-      <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} currentUser={currentUser} />
     </div>
   );
 }

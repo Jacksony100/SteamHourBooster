@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { GuardCodeModal } from "@/components/ui-kit/guard-code-modal";
+import { useLanguage } from "@/components/language-provider";
 import { api } from "@/lib/api";
 
 type Overview = {
@@ -63,9 +64,9 @@ type SessionEvent = {
 
 const activeStatuses = new Set(["starting", "running", "stopping"]);
 
-function formatTime(value: string | null) {
-  if (!value) return "never";
-  return new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(value));
+function formatTime(value: string | null, locale: string) {
+  if (!value) return null;
+  return new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(value));
 }
 
 function statusClass(status: string) {
@@ -76,6 +77,8 @@ function statusClass(status: string) {
 }
 
 export function DashboardClient() {
+  const { t, language } = useLanguage();
+  const d = t.dashboard;
   const [overview, setOverview] = useState<Overview | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -120,7 +123,7 @@ export function DashboardClient() {
       );
       setSessionEvents(Object.fromEntries(eventEntries));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Dashboard failed to load";
+      const message = error instanceof Error ? error.message : d.tLoadFailed;
       setLoadError(message);
       if (!silent) toast.error(message);
     } finally {
@@ -132,6 +135,7 @@ export function DashboardClient() {
     refresh();
     const timer = window.setInterval(() => refresh(true), 5000);
     return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -148,14 +152,14 @@ export function DashboardClient() {
         csrf: true,
         body: JSON.stringify({ label, display_name: displayName, steam_id: steamId || undefined, ownership_attested: ownershipAttested })
       });
-      toast.success("Account added");
+      toast.success(d.tAccountAdded);
       setLabel("");
       setDisplayName("");
       setSteamId("");
       setOwnershipAttested(false);
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to add account");
+      toast.error(error instanceof Error ? error.message : d.tAddFailed);
     }
   }
 
@@ -170,10 +174,10 @@ export function DashboardClient() {
   async function loginAccount(account: Account) {
     try {
       await requestAccountLogin(account);
-      toast.success("Account is online");
+      toast.success(d.tOnline);
       await refresh();
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Login failed";
+      const message = error instanceof Error ? error.message : d.tLoginFailed;
       if (message.toLowerCase().includes("steam guard code required")) {
         setGuardAccount(account);
         setGuardCode("");
@@ -189,12 +193,12 @@ export function DashboardClient() {
     setGuardSubmitting(true);
     try {
       await requestAccountLogin(guardAccount, guardCode);
-      toast.success("Account is online");
+      toast.success(d.tOnline);
       setGuardAccount(null);
       setGuardCode("");
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Steam Guard verification failed");
+      toast.error(error instanceof Error ? error.message : d.tGuardFailed);
     } finally {
       setGuardSubmitting(false);
     }
@@ -209,7 +213,7 @@ export function DashboardClient() {
     if (!selectedAccount) return;
     const app_ids = games.filter((game) => game.selected).map((game) => game.app_id);
     await api<Game[]>(`/api/v1/games/${selectedAccount.id}`, { method: "PUT", csrf: true, body: JSON.stringify({ app_ids }) });
-    toast.success("Games saved");
+    toast.success(d.tGamesSaved);
     await refresh();
   }
 
@@ -229,11 +233,11 @@ export function DashboardClient() {
       const body: Record<string, unknown> = { account_id: account.id };
       if (steamGuardCode) body.steam_guard_code = steamGuardCode;
       await api<Session>("/api/v1/sessions", { method: "POST", csrf: true, body: JSON.stringify(body) });
-      toast.success(steamGuardCode ? "Real session requested" : "Session requested");
+      toast.success(steamGuardCode ? d.tRealSession : d.tSession);
       setStartGuardAccount(null);
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Session start failed");
+      toast.error(error instanceof Error ? error.message : d.tStartFailed);
     } finally {
       setStartGuardSubmitting(false);
     }
@@ -242,10 +246,10 @@ export function DashboardClient() {
   async function stopSession(session: Session) {
     try {
       await api<Session>(`/api/v1/sessions/${session.id}/stop`, { method: "POST", csrf: true });
-      toast.success("Session stopped");
+      toast.success(d.tStopped);
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Session stop failed");
+      toast.error(error instanceof Error ? error.message : d.tStopFailed);
     }
   }
 
@@ -256,27 +260,27 @@ export function DashboardClient() {
         await api<Account>(`/api/v1/steam-accounts/${session.account_id}/login`, { method: "POST", csrf: true, body: JSON.stringify({}) });
       }
       await api<Session>("/api/v1/sessions", { method: "POST", csrf: true, body: JSON.stringify({ account_id: session.account_id }) });
-      toast.success("Recovery started");
+      toast.success(d.tRecovery);
       await refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Recovery failed");
+      toast.error(error instanceof Error ? error.message : d.tRecoveryFailed);
     }
   }
 
   async function deleteAccount(account: Account) {
     await api(`/api/v1/steam-accounts/${account.id}`, { method: "DELETE", csrf: true });
-    toast.success("Account deleted");
+    toast.success(d.tDeleted);
     await refresh();
   }
 
   const filteredGames = useMemo(() => games.filter((game) => game.name.toLowerCase().includes(gameQuery.toLowerCase())), [games, gameQuery]);
   const activeSessions = sessions.filter((session) => activeStatuses.has(session.status));
   const onboardingSteps = [
-    { title: "Create workspace", done: Boolean(currentUser), text: "Your DeckPilot account is active." },
-    { title: "Verify email", done: Boolean(currentUser?.email_verified), text: currentUser?.email ? "Confirm recovery email." : "Add an email in settings." },
-    { title: "Add owned account", done: accounts.length > 0, text: "Link or create a safe demo account record." },
-    { title: "Review plan limits", done: Boolean(overview?.subscription_status), text: `${overview?.subscription_plan || "trial"} plan is visible.` },
-    { title: "Start demo session", done: activeSessions.length > 0, text: "Manual transparent sessions appear here." }
+    { title: d.stepWorkspaceTitle, done: Boolean(currentUser), text: d.stepWorkspaceText },
+    { title: d.stepEmailTitle, done: Boolean(currentUser?.email_verified), text: currentUser?.email ? d.stepEmailConfirm : d.stepEmailAdd },
+    { title: d.stepAccountTitle, done: accounts.length > 0, text: d.stepAccountText },
+    { title: d.stepPlanTitle, done: Boolean(overview?.subscription_status), text: d.stepPlanText.replace("{plan}", overview?.subscription_plan || "trial") },
+    { title: d.stepSessionTitle, done: activeSessions.length > 0, text: d.stepSessionText }
   ];
 
   return (
@@ -285,21 +289,21 @@ export function DashboardClient() {
       {loadError && (
         <Card className="flex flex-wrap items-center justify-between gap-4 border-rose-400/20 bg-rose-500/10">
           <div>
-            <CardTitle>Dashboard unavailable</CardTitle>
+            <CardTitle>{d.unavailable}</CardTitle>
             <p className="mt-2 text-sm leading-6 text-rose-100/80">{loadError}</p>
           </div>
-          <Button variant="ghost" onClick={() => refresh()}>Retry</Button>
+          <Button variant="ghost" onClick={() => refresh()}>{d.retry}</Button>
         </Card>
       )}
 
       <Card className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="text-sm font-semibold text-emerald-200">Launch checklist</div>
-            <CardTitle className="mt-1">Get workspace-ready in a few steps</CardTitle>
+            <div className="text-sm font-semibold text-emerald-200">{d.checklistEyebrow}</div>
+            <CardTitle className="mt-1">{d.checklistTitle}</CardTitle>
           </div>
           <Badge className="border-emerald-300/30 text-emerald-200">
-            {onboardingSteps.filter((step) => step.done).length}/{onboardingSteps.length} complete
+            {onboardingSteps.filter((step) => step.done).length}/{onboardingSteps.length} {d.complete}
           </Badge>
         </div>
         <div className="grid gap-3 md:grid-cols-5">
@@ -314,12 +318,12 @@ export function DashboardClient() {
 
       <section className="grid gap-4 md:grid-cols-4">
         {[
-          ["Accounts", overview?.accounts_count ?? "-"],
-          ["Online sessions", `${overview?.online_sessions ?? 0}/${overview?.active_session_limit ?? "-"}`],
-          ["Active games", overview?.active_games ?? "-"],
-          ["Subscription", overview?.subscription_status ?? "-"]
+          [d.statAccounts, overview?.accounts_count ?? "-"],
+          [d.statOnline, `${overview?.online_sessions ?? 0}/${overview?.active_session_limit ?? "-"}`],
+          [d.statGames, overview?.active_games ?? "-"],
+          [d.statSubscription, overview?.subscription_status ?? "-"]
         ].map(([itemLabel, value]) => (
-          <motion.div key={itemLabel} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.div key={String(itemLabel)} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
             <Card>
               <div className="text-xs font-semibold uppercase text-slate-400">{itemLabel}</div>
               <div className="mt-3 text-3xl font-black">{value}</div>
@@ -332,41 +336,41 @@ export function DashboardClient() {
         <Card className="space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>Steam accounts</CardTitle>
-              <p className="text-sm text-slate-400">Owner-only access, encrypted credentials, visible status.</p>
+              <CardTitle>{d.accountsTitle}</CardTitle>
+              <p className="text-sm text-slate-400">{d.accountsSubtitle}</p>
             </div>
           </div>
           <form className="grid gap-3 md:grid-cols-4" onSubmit={addAccount}>
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label" required />
-            <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Display name" autoComplete="off" required />
-            <Input value={steamId} onChange={(e) => setSteamId(e.target.value)} placeholder="SteamID64 (optional)" autoComplete="off" />
-            <Button type="submit" disabled={!ownershipAttested}>Add account</Button>
+            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={d.phLabel} required />
+            <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={d.phDisplayName} autoComplete="off" required />
+            <Input value={steamId} onChange={(e) => setSteamId(e.target.value)} placeholder={d.phSteamId} autoComplete="off" />
+            <Button type="submit" disabled={!ownershipAttested}>{d.addAccount}</Button>
             <label className="md:col-span-4 flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-300">
               <input className="mt-1" type="checkbox" checked={ownershipAttested} onChange={(event) => setOwnershipAttested(event.target.checked)} required />
-              <span>I confirm this is my own Steam account. Demo mode does not require a Steam password.</span>
+              <span>{d.ownership}</span>
             </label>
           </form>
           <div className="grid gap-3">
-            {accounts.length === 0 && <Empty title="No accounts yet" text="Add a Steam account you own. Test mode uses the safe mock adapter." />}
+            {accounts.length === 0 && <Empty title={d.emptyAccountsTitle} text={d.emptyAccountsText} />}
             {accounts.map((account) => (
               <div key={account.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="font-bold">{account.label}</div>
                     <div className="text-xs text-slate-400">
-                      SteamID64: {account.steamid64 || "not connected"} / selected games: {account.selected_games_count}
+                      {d.steamId}: {account.steamid64 || d.notConnected} / {d.selectedGames}: {account.selected_games_count}
                     </div>
                   </div>
                   <Badge className={statusClass(account.status)}>{account.status}</Badge>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Button variant="ghost" onClick={() => loginAccount(account)}>Login</Button>
-                  <Button variant="ghost" onClick={() => openGames(account)}>Games</Button>
+                  <Button variant="ghost" onClick={() => loginAccount(account)}>{d.login}</Button>
+                  <Button variant="ghost" onClick={() => openGames(account)}>{d.games}</Button>
                   <Button variant="success" onClick={() => requestStart(account)}>
                     <Activity className="h-4 w-4" />
-                    Start
+                    {d.start}
                   </Button>
-                  <Button variant="danger" onClick={() => deleteAccount(account)}>Delete</Button>
+                  <Button variant="danger" onClick={() => deleteAccount(account)}>{d.del}</Button>
                 </div>
               </div>
             ))}
@@ -376,24 +380,24 @@ export function DashboardClient() {
         <div className="grid gap-6">
           <Card>
             <div className="flex items-center justify-between gap-3">
-              <CardTitle>Active sessions</CardTitle>
-              <Badge>{activeSessions.length} active</Badge>
+              <CardTitle>{d.activeSessionsTitle}</CardTitle>
+              <Badge>{activeSessions.length} {d.active}</Badge>
             </div>
             <div className="mt-4 grid gap-3">
-              {sessions.length === 0 && <Empty title="No sessions" text="Sessions are started manually and recorded with visible lifecycle events." />}
+              {sessions.length === 0 && <Empty title={d.emptySessionsTitle} text={d.emptySessionsText} />}
               {sessions.map((session) => (
                 <div key={session.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="font-semibold">Session #{session.id}</div>
-                      <div className="text-xs text-slate-500">Account {session.account_id} / games {session.current_games.join(", ") || "-"}</div>
+                      <div className="font-semibold">{d.session} #{session.id}</div>
+                      <div className="text-xs text-slate-500">{d.account} {session.account_id} / {d.gamesLabel} {session.current_games.join(", ") || "-"}</div>
                     </div>
                     <Badge className={statusClass(session.status)}>{session.status}</Badge>
                   </div>
                   <div className="mt-3 grid gap-2 text-xs text-slate-400">
                     <div className="flex items-center gap-2">
                       <Clock3 className="h-3.5 w-3.5" />
-                      heartbeat {formatTime(session.last_heartbeat_at)}
+                      {d.heartbeat} {formatTime(session.last_heartbeat_at, language) ?? d.never}
                     </div>
                     {session.error_message && (
                       <div className="flex items-start gap-2 rounded-lg border border-rose-300/20 bg-rose-300/10 p-2 text-rose-100">
@@ -406,13 +410,13 @@ export function DashboardClient() {
                     {activeStatuses.has(session.status) && (
                       <Button variant="ghost" onClick={() => stopSession(session)}>
                         <Square className="h-4 w-4" />
-                        Stop
+                        {d.stop}
                       </Button>
                     )}
                     {session.status === "error" && (
                       <Button variant="ghost" onClick={() => recoverSession(session)}>
                         <RotateCcw className="h-4 w-4" />
-                        Retry
+                        {d.retrySession}
                       </Button>
                     )}
                   </div>
@@ -429,14 +433,14 @@ export function DashboardClient() {
             </div>
           </Card>
           <Card>
-            <CardTitle>Recent activity</CardTitle>
+            <CardTitle>{d.recentActivity}</CardTitle>
             <div className="mt-4 grid gap-3">
               {overview?.recent_activity?.length ? overview.recent_activity.map((item, index) => (
                 <div key={`${item.action}-${item.target_id}-${item.created_at}-${index}`} className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
                   <div className="font-semibold">{item.action}</div>
                   <div className="text-slate-400">{item.target_type} #{item.target_id}</div>
                 </div>
-              )) : <Empty title="Activity log is empty" text="Account, session, billing, and admin actions will appear here." />}
+              )) : <Empty title={d.emptyActivityTitle} text={d.emptyActivityText} />}
             </div>
           </Card>
         </div>
@@ -446,12 +450,12 @@ export function DashboardClient() {
         <Card className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>Game picker / {selectedAccount.label}</CardTitle>
-              <p className="text-sm text-slate-400">Search and save games through the Steam integration abstraction.</p>
+              <CardTitle>{d.gamePicker} / {selectedAccount.label}</CardTitle>
+              <p className="text-sm text-slate-400">{d.gamePickerSubtitle}</p>
             </div>
-            <Button onClick={saveGames}>Save selection</Button>
+            <Button onClick={saveGames}>{d.saveSelection}</Button>
           </div>
-          <Input value={gameQuery} onChange={(e) => setGameQuery(e.target.value)} placeholder="Search games" />
+          <Input value={gameQuery} onChange={(e) => setGameQuery(e.target.value)} placeholder={d.searchGames} />
           <div className="grid gap-2 md:grid-cols-2">
             {filteredGames.map((game) => (
               <label key={game.app_id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3 text-sm">
@@ -470,15 +474,15 @@ export function DashboardClient() {
       {guardAccount && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-lg">
           <form className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-950/95 p-5 shadow-glow" onSubmit={submitSteamGuard}>
-            <CardTitle>Steam Guard</CardTitle>
+            <CardTitle>{d.guardTitle}</CardTitle>
             <p className="mt-2 text-sm leading-6 text-slate-400">
-              Enter the one-time code for {guardAccount.label}. The code is used only for this login attempt.
+              {d.guardText.replace("{label}", guardAccount.label)}
             </p>
             <Input
               className="mt-4"
               value={guardCode}
               onChange={(event) => setGuardCode(event.target.value)}
-              placeholder="Steam Guard code"
+              placeholder={d.guardPh}
               autoComplete="one-time-code"
               maxLength={32}
               required
@@ -492,10 +496,10 @@ export function DashboardClient() {
                   setGuardCode("");
                 }}
               >
-                Cancel
+                {d.cancel}
               </Button>
               <Button type="submit" disabled={guardSubmitting}>
-                {guardSubmitting ? "Checking..." : "Continue"}
+                {guardSubmitting ? d.checking : d.continueBtn}
               </Button>
             </div>
           </form>
