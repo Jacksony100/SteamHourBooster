@@ -18,6 +18,9 @@ ENV NODE_OPTIONS=--dns-result-order=ipv4first
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# Bind the Next standalone server to all interfaces (Docker sets HOSTNAME to the
+# container id, which would otherwise make 127.0.0.1 healthchecks fail).
+ENV HOSTNAME=0.0.0.0
 # Run as the built-in non-root "node" user.
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
