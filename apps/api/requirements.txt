@@ -6,7 +6,7 @@ fastapi==0.137.0
 httpx==0.28.1
 passlib[bcrypt]==1.7.4
 pip-audit==2.10.1
-psycopg[binary]==3.2.13
+psycopg[binary]==3.3.4
 pydantic-settings==2.6.1
 PyJWT==2.13.0
 pytest==9.1.0
