@@ -4,5 +4,5 @@ cryptography==49.0.0
 steam==1.4.4
 requests==2.34.2
 pytest==9.1.0
-python-dotenv==1.2.2
+python-dotenv==1.2.3
 pip-audit==2.10.1
